@@ -1,0 +1,43 @@
+version: '3.8'
+services:
+  nginx:
+    image: nginx:stable-alpine
+    ports:
+      - 8000:80
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./src:/var/www/versacrm
+    container_name: versacrm_nginx
+  php:
+    build:
+      context: _docker
+      dockerfile: php.Dockerfile
+    volumes:
+      - ./src:/var/www/versacrm
+    container_name: versacrm_php
+    user: 1000:1000
+  python:
+    build:
+      context: .
+      dockerfile: _docker/python.Dockerfile
+    container_name: versacrm_python
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      # - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres  # если нужно
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    volumes:
+      - ./bot:/app        # для разработки удобно
+    # command: sh -c "watchfiles 'python /app/main.py' /app"
+  postgres:
+    image: postgres:16.8-alpine
+    environment:
+      - POSTGRES_DB=versacrm
+      - POSTGRES_USER=versa
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - '5430:5432'
+    volumes:
+      - ./pgdb:/var/lib/postgresql/data
+    container_name: versacrm_postgres
