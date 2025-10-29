@@ -37,9 +37,18 @@ const showingNavigationDropdown = ref(false);
                                     :href="route('dashboard')"
                                     :active="route().current('dashboard')"
                                 >
-                                    Dashboard
+                                    Главная
                                 </NavLink>
+
+                                <NavLink
+                                    :href="route('chat.index')"
+                                    :active="route().current('chat.index')"
+                                >
+                                    Чаты
+                                </NavLink>
+
                             </div>
+
                         </div>
 
                         <div class="hidden sm:ms-6 sm:flex sm:items-center">

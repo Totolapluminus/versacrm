@@ -136,6 +136,8 @@
       <excludeFolder url="file://$MODULE_DIR$/src/vendor/phpstan/phpdoc-parser" />
       <excludeFolder url="file://$MODULE_DIR$/src/vendor/ta-tikoma/phpunit-architecture-test" />
       <excludeFolder url="file://$MODULE_DIR$/src/vendor/tightenco/ziggy" />
+      <excludeFolder url="file://$MODULE_DIR$/src/vendor/doctrine/dbal" />
+      <excludeFolder url="file://$MODULE_DIR$/src/vendor/psr/cache" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />

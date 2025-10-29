@@ -9,13 +9,17 @@ services:
       - ./src:/var/www/versacrm
     container_name: versacrm_nginx
   php:
+    environment:
+      HOME: /var/www/versacrm
+      XDG_CONFIG_HOME: /var/www/versacrm/.config
+      PSYSH_HOME: /var/www/versacrm/.config/psysh
+    user: 1000:1000
     build:
       context: _docker
       dockerfile: php.Dockerfile
     volumes:
       - ./src:/var/www/versacrm
     container_name: versacrm_php
-    user: 1000:1000
   python:
     build:
       context: .
@@ -23,6 +27,7 @@ services:
     container_name: versacrm_python
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - LARAVEL_API_URL=${LARAVEL_API_URL}
       # - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres  # если нужно
     depends_on:
       - postgres

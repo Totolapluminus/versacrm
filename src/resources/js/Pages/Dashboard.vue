@@ -11,7 +11,7 @@ import { Head } from '@inertiajs/vue3';
             <h2
                 class="text-xl font-semibold leading-tight text-gray-800"
             >
-                Dashboard
+                Дашборд
             </h2>
         </template>
 
@@ -20,8 +20,8 @@ import { Head } from '@inertiajs/vue3';
                 <div
                     class="overflow-hidden bg-white shadow-sm sm:rounded-lg"
                 >
-                    <div class="p-6 text-gray-900">
-                        You're logged in!
+                    <div class="p-6 text-gray-900 flex gap-4">
+                        Статистика тут будет
                     </div>
                 </div>
             </div>
