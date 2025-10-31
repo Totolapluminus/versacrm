@@ -1,0 +1,5 @@
+TelegramUser::create([])
+TelegramUser::create(['is_bot' => true, 'telegram_id' => 8288977334])
+TelegramUser::create(['is_bot' => true, 'telegram_id' => 8288977334, username => 'VersaCRM_bot'])
+TelegramUser::create(['is_bot' => true, 'telegram_id' => 8288977334, 'username' => 'VersaCRM_bot'])
+TelegramUser::create(['is_bot' => true, 'telegram_id' => 8288977334, 'username' => 'VersaCRM_bot'])

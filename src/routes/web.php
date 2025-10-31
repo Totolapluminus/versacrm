@@ -20,8 +20,9 @@ Route::get('/dashboard', function () {
     return Inertia::render('Dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+
 Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
-Route::get('/chat/{chat?}', fn() => Inertia::render('Chat/Show'))->name('chat.show');
+Route::get('/chat/{chat}', [ChatController::class, 'show'])->name('chat.show');
 
 
 Route::middleware('auth')->group(function () {
