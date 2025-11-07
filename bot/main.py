@@ -3,72 +3,90 @@ import sys
 import time
 import telebot
 import requests
-
-TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-if not TOKEN:
-    raise RuntimeError("TELEGRAM_BOT_TOKEN is not set")
+import threading
 
 LARAVEL_API_URL = os.getenv("LARAVEL_API_URL")
+SANCTUM_TOKEN = os.getenv("SANCTUM_TOKEN")
 
-bot = telebot.TeleBot(TOKEN, parse_mode="HTML")  # можно без parse_mode
+headers = {
+    "Authorization": f"Bearer {SANCTUM_TOKEN}",
+}
 
-@bot.message_handler(commands=["start", "help"])
-def cmd_start(message: telebot.types.Message):
-    bot.reply_to(
-        message,
-        "Привет! Я бот CRM на telebot.\nНапиши сообщение — я сохраню его."
-    )
+#GET ALL BOTS
+resp = requests.get(f"{LARAVEL_API_URL}/api/telegram-bots", headers=headers, timeout=10)
+resp.raise_for_status()
+bots_data = resp.json() or []
 
-@bot.message_handler(content_types=["text"])
-def on_text(message: telebot.types.Message):
-    text = message.text or ""
-    user_id = message.from_user.id if message.from_user else None
-    user_username = message.from_user.username if message.from_user else None
-    chat_id = message.chat.id
-    chat_type = message.chat.type
+def make_bot(token: str, id: int):
 
-    payload = {
-        'user_id': user_id,
-        'user_username': user_username,
-        'chat_id': chat_id,
-        'chat_type': chat_type,
-        'direction': 'in',
-        'text': text
-    }
-
-    print(f"[BOT] Received message: {payload}", flush=True)
+    bot = telebot.TeleBot(token, parse_mode="HTML")
 
     try:
-        print(f"[BOT] Sending POST to {LARAVEL_API_URL}/api/messages ...", flush=True)
-        response = requests.post(
-            f'{LARAVEL_API_URL}/api/messages',
-            data=payload,
-            timeout=5  # ограничим время ожидания
-        )
-        print(f"[BOT] Got response: {response.status_code} {response.text}", flush=True)
+        me = bot.get_me()
+        label = f"{me.id}@{me.username}"
+    except Exception:
+        me, label = None, "bot"
 
-        if response.status_code == 200:
-            bot.reply_to(message, f"Сообщение сохранено: {text}")
-        else:
-            bot.reply_to(message, f"Ошибка API: {response.status_code}")
-    except Exception as e:
-        print(f"[BOT] ERROR during request: {e}", file=sys.stderr, flush=True)
-        bot.reply_to(message, f"Ошибка при подключении к API: {e}")
+    @bot.message_handler(commands=["start", "help"])
 
-def main():
-    # Бесконечный цикл с авто-перезапуском polling при сетевых сбоях
+    def cmd_start(message: telebot.types.Message):
+        bot.reply_to(message, "Привет! Я бот CRM на telebot.\nНапиши сообщение — я сохраню его.")
+
+    @bot.message_handler(content_types=["text"])
+
+    def on_text(message: telebot.types.Message):
+
+        payload = {
+            'user_id': message.from_user.id if message.from_user else None,
+            'user_username': message.from_user.username if message.from_user else None,
+            'chat_id': message.chat.id,
+            'chat_type': message.chat.type,
+            'direction': 'in',
+            'text': message.text or "",
+            'bot_tg_id': me.id if me else None,
+            'bot_db_id': id if id else None,
+            'bot_username': me.username if me else None,
+        }
+
+        print(f"[{label}] Received: {payload}", flush=True)
+
+        try:
+            r = requests.post(f"{LARAVEL_API_URL}/api/messages", data=payload, timeout=10)
+            print(f"[{label}] API: {r.status_code} {r.text}", flush=True)
+            bot.reply_to(message, "Сообщение сохранено: " + (message.text or "")) if r.status_code == 200 \
+                else bot.reply_to(message, f"Ошибка API: {r.status_code}")
+        except Exception as e:
+            print(f"[{label}] POST error: {e}", file=sys.stderr, flush=True)
+            bot.reply_to(message, f"Ошибка при подключении к API: {e}")
+
+    return bot, label
+
+def poll_worker(bot: telebot.TeleBot, label: str):
     while True:
         try:
-            # none_stop=True — не останавливать обработку при ошибках
-            # interval=0 — не ждать между циклами
+            print(f"[{label}] start polling", flush=True)
             bot.infinity_polling(timeout=30, long_polling_timeout=25)
         except KeyboardInterrupt:
-            print("KeyboardInterrupt — выходим", file=sys.stderr, flush=True)
-            break
+            print(f"[{label}] stop", flush=True); break
         except Exception as e:
-            # Логируем и пробуем перезапуститься через паузу
-            print(f"[BOT] polling error: {e}", file=sys.stderr, flush=True)
+            print(f"[{label}] polling error: {e}", file=sys.stderr, flush=True)
             time.sleep(5)
 
-if __name__ == "__main__":
-    main()
+#INIT AND START ALL BOTS
+threads = []
+for item in bots_data:
+    token = item.get("token")
+    id = item.get("id")
+    if not token:
+        continue
+    bot, label = make_bot(token, id)
+    thread = threading.Thread(target=poll_worker, args=(bot, label), daemon=True)
+    thread.start()
+    threads.append(thread)
+
+#KEEP ALIVE
+try:
+    while any(thread.is_alive() for thread in threads):
+        time.sleep(1)
+except KeyboardInterrupt:
+    print("[CORE] Exit", flush=True)

@@ -23,7 +23,8 @@ class StoreOutRequest extends FormRequest
     {
         return [
             'text' => 'required|string',
-            'telegram_chat_raw_id' => 'required|numeric|exists:telegram_chats,chat_id',
+            'telegram_chat_db_id' => 'required|numeric|exists:telegram_chats,id',
+            'telegram_chat_tg_id' => 'required|numeric|exists:telegram_chats,chat_id',
             'direction' => 'required|string'
         ];
     }

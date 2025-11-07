@@ -7,13 +7,16 @@ import {Link} from "@inertiajs/vue3";
 
 
 const {props} = usePage()
-const chats = props.chats ?? []
-const currentChatId = props.current_chat.chat_id ?? []
+const bots = props.bots ?? []
+const currentChatDbId = props.current_chat.id ?? []
+const currentChatTgId = props.current_chat.chat_id ?? []
 const messages = ref(props.current_chat.telegram_messages ?? [])
 
-console.log(chats)
+console.log(bots)
 console.log(messages.value)
-console.log(currentChatId)
+console.log(currentChatDbId)
+console.log(currentChatTgId)
+
 
 const draft = ref('')
 const scrollEl = ref(null)
@@ -43,7 +46,8 @@ async function send() {
         id: tmpId,
         direction: 'out',
         text: text,
-        telegram_chat_raw_id: currentChatId,
+        telegram_chat_db_id: currentChatDbId,
+        telegram_chat_tg_id: currentChatTgId,
     }
 
     messages.value.push(optimistic)
@@ -54,7 +58,8 @@ async function send() {
         const response = await axios.post(`/api/chat`, {
             direction: 'out',
             text: text,
-            telegram_chat_raw_id: currentChatId,
+            telegram_chat_db_id: currentChatDbId,
+            telegram_chat_tg_id: currentChatTgId,
         })
         console.log(response)
 
@@ -74,16 +79,17 @@ async function send() {
 
 <template>
     <AuthenticatedLayout>
-        <div class="grid grid-cols-12 gap-4 h-[calc(100vh-8rem)]">
+        <div class="grid grid-cols-12 py-4 gap-4 h-[calc(100vh-8rem)]">
             <!-- слева список чатов (пока заглушка) -->
             <aside class="col-span-3 bg-white rounded-2xl p-3 shadow-sm">
-                <div v-for="chat in chats" :key="chat.id" class="space-y-2">
-                    <div :class="[
+                <div v-for="bot in bots" :key="bot.id" class="space-y-2">
+                    <h2>Бот №{{bot.id}}</h2>
+                    <div v-for="chat in bot.telegram_chats" :class="[
                         'p-3 rounded-xl my-2',
                         chat.id === props.current_chat?.id ? 'bg-blue-400 text-white' : 'bg-slate-100'
                     ]">
                         <Link :href="route('chat.show', chat.id)" >
-                            Чат с {{ chat.telegram_users.find(user => !user.is_bot)?.username || 'Без имени' }}
+                            Чат с {{ chat.telegram_user?.username || 'Без имени' }}
                         </Link>
                     </div>
                 </div>

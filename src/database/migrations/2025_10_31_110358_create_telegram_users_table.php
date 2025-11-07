@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('telegram_users', function (Blueprint $table) {
             $table->id();
-            $table->boolean('is_bot')->default(false);
+//            $table->boolean('is_bot')->default(false);
             $table->unsignedBigInteger('telegram_id');
             $table->string('username')->nullable();
             $table->string('phone', 32)->nullable();

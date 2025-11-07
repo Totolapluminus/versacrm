@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\TelegramChat;
+use App\Models\TelegramBot;
 use App\Models\TelegramUser;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
@@ -13,10 +13,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('telegram_chat_user', function (Blueprint $table) {
+        Schema::create('telegram_chats', function (Blueprint $table) {
             $table->id();
-            $table->foreignIdFor(TelegramChat::class);
+            $table->foreignIdFor(TelegramBot::class)->nullable();
             $table->foreignIdFor(TelegramUser::class);
+            $table->UnsignedBigInteger('chat_id');
+            $table->string('type', 32)->nullable();
+            $table->enum('status', ['open', 'in_progress', 'closed'])->default('open');
+            $table->timestamps();
         });
     }
 
@@ -25,6 +29,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('telegram_chat_user');
+        Schema::dropIfExists('telegram_chats');
     }
 };

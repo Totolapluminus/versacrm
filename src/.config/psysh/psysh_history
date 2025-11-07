@@ -3,3 +3,17 @@ TelegramUser::create(['is_bot' => true, 'telegram_id' => 8288977334])
 TelegramUser::create(['is_bot' => true, 'telegram_id' => 8288977334, username => 'VersaCRM_bot'])
 TelegramUser::create(['is_bot' => true, 'telegram_id' => 8288977334, 'username' => 'VersaCRM_bot'])
 TelegramUser::create(['is_bot' => true, 'telegram_id' => 8288977334, 'username' => 'VersaCRM_bot'])
+$u = App\Models\User::first();
+$token = $u->createToken('crm-bot')->plainTextToken;
+$u = App\Models\User::where(id, 2);
+$u = App\Models\User::where('id', 2);
+$token = $u->createToken('crm-bot')->plainTextToken;
+$u = App\Models\User::where('id', 2);
+$u = App\Models\User::find('id',2);
+$u = App\Models\User::
+$u = App\Models\User::find(2);
+$token = $u->createToken('crm-bot')->plainTextToken;
+$u = App\Models\User::first();
+$token = $u->createToken('crm-bot')->plainTextToken;
+$u = App\Models\User::first();
+$token = $u->createToken('crm-bot')->plainTextToken;

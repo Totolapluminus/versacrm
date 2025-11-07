@@ -12,6 +12,9 @@ class TelegramMessage extends Model
     public function telegramUser() : BelongsTo {
         return $this->belongsTo(TelegramUser::class);
     }
+    public function telegramBot() : BelongsTo {
+        return $this->belongsTo(TelegramBot::class);
+    }
 
     public function telegramChat() : BelongsTo {
         return $this->belongsTo(TelegramChat::class);

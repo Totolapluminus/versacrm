@@ -28,6 +28,7 @@ services:
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - LARAVEL_API_URL=${LARAVEL_API_URL}
+      - SANCTUM_TOKEN=${SANCTUM_TOKEN}
       # - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres  # если нужно
     depends_on:
       - postgres

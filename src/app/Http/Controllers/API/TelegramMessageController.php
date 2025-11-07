@@ -1,14 +1,17 @@
 <?php
 
-namespace App\Http\Controllers;
+namespace App\Http\Controllers\API;
 
+use App\Http\Controllers\Controller;
 use App\Http\Requests\TelegramMessage\StoreInRequest;
 use App\Http\Requests\TelegramMessage\StoreOutRequest;
+use App\Models\TelegramBot;
 use App\Models\TelegramChat;
 use App\Models\TelegramMessage;
 use App\Models\TelegramUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class TelegramMessageController extends Controller
 {
@@ -17,23 +20,28 @@ class TelegramMessageController extends Controller
 
         $data = $request->validated();
 
-        $chat = TelegramChat::firstOrCreate([
-            'chat_id' => $data['chat_id'],
-            'type' => $data['chat_type']
-        ]);
+        Log::info('Incoming', $data);
+
+        //ОПТИМИЗИРОВАТЬ (запомнить в переменную)?
 
         $user = TelegramUser::firstOrCreate([
             'username' => $data['user_username'] ?? null,
             'telegram_id' => $data['user_id'],
         ]);
 
-        if(isset($chat) && isset($user)){
-            $chat->telegramUsers()->syncWithoutDetaching([$user->id]);
-        }
+        //ОПТИМИЗИРОВАТЬ (запомнить в переменную)?
+
+        $chat = TelegramChat::firstOrCreate([
+            'telegram_bot_id' => $data['bot_db_id'],
+            'telegram_user_id' => $user->id,
+            'chat_id' => $data['chat_id'],
+            'type' => $data['chat_type'],
+            'status' => 'open',
+        ]);
 
         TelegramMessage::firstOrCreate([
-            'telegram_user_id' => TelegramUser::where('telegram_id', $data['user_id'])->first()->id,
-            'telegram_chat_id' => TelegramChat::where('chat_id', $data['chat_id'])->first()->id,
+            'telegram_user_id' => $user->id,
+            'telegram_chat_id' => $chat->id,
             'text' => $data['text'],
             'direction' => $data['direction'],
         ]);
@@ -46,27 +54,25 @@ class TelegramMessageController extends Controller
 
         $data = $request->validated();
 
-        $token = env('TELEGRAM_BOT_TOKEN');
+        $chat = TelegramChat::query()
+            ->select('id','telegram_bot_id','chat_id')
+            ->with(['telegramBot:id,token'])
+            ->findOrFail($data['telegram_chat_db_id']);
 
-        $telegram_bot_id = Http::get('https://api.telegram.org/bot' . $token . '/getMe')->json('result.id');
+        $bot = $chat->telegramBot;
 
-        $telegram_chat_id = TelegramChat::where('chat_id', $data['telegram_chat_raw_id'])->first()->id;
+        $token = $bot->token;
 
         $res = Http::post("https://api.telegram.org/bot{$token}/sendMessage", [
-            'chat_id' => $data['telegram_chat_raw_id'],
+            'chat_id' => $chat['chat_id'],
             'text' => $data['text'],
         ])->throw()->json();
 
-        $user = TelegramUser::firstOrCreate([
-            'telegram_id' => $telegram_bot_id,
-            'is_bot' => true
-        ]);
-
-        $user->telegramChats()->syncWithoutDetaching([$telegram_chat_id]);
+        ////
 
         $message = TelegramMessage::firstOrCreate([
-            'telegram_user_id' => TelegramUser::where('telegram_id', $telegram_bot_id)->first()->id,
-            'telegram_chat_id' => $telegram_chat_id,
+            'telegram_bot_id' => $bot['id'],
+            'telegram_chat_id' => $chat['id'],
             'text' => $data['text'],
             'direction' => $data['direction'],
         ]);

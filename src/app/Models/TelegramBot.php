@@ -3,18 +3,23 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class TelegramUser extends Model
+class TelegramBot extends Model
 {
     protected $guarded = [];
 
-    public function telegramMessages() : HasMany {
-        return $this->hasMany(TelegramMessage::class);
-    }
+    protected $casts = [
+        'token' => 'encrypted',
+    ];
 
     public function telegramChats() : HasMany {
         return $this->hasMany(TelegramChat::class);
+    }
+
+    public function user() : BelongsToMany {
+        return $this->belongsToMany(User::class);
     }
 }

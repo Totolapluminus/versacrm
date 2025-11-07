@@ -28,6 +28,9 @@ class StoreInRequest extends FormRequest
             'chat_type' => 'required|string',
             'direction' => 'required|string',
             'text' => 'required|string',
+            'bot_tg_id' => 'required|numeric',
+            'bot_db_id' => 'required|numeric',
+            'bot_username' => 'nullable|string',
         ];
     }
 }
