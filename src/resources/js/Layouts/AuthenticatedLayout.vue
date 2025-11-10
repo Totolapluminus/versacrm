@@ -47,6 +47,13 @@ const showingNavigationDropdown = ref(false);
                                     Чаты
                                 </NavLink>
 
+                                <NavLink
+                                    :href="route('assign.index')"
+                                    :active="route().current('assign.index')"
+                                >
+                                    Доступ
+                                </NavLink>
+
                             </div>
 
                         </div>

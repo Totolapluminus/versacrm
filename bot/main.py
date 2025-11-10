@@ -24,7 +24,8 @@ def make_bot(token: str, id: int):
     try:
         me = bot.get_me()
         label = f"{me.id}@{me.username}"
-    except Exception:
+    except Exception as e:
+        print("get_me failed:", repr(e))
         me, label = None, "bot"
 
     @bot.message_handler(commands=["start", "help"])
@@ -75,6 +76,7 @@ def poll_worker(bot: telebot.TeleBot, label: str):
 #INIT AND START ALL BOTS
 threads = []
 for item in bots_data:
+
     token = item.get("token")
     id = item.get("id")
     if not token:

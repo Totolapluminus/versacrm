@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AssignController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Foundation\Application;
@@ -23,6 +24,9 @@ Route::get('/dashboard', function () {
 
 Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
 Route::get('/chat/{chat}', [ChatController::class, 'show'])->name('chat.show');
+
+Route::get('/assign', [AssignController::class, 'index'])->name('assign.index');
+Route::post('/assign', [AssignController::class, 'store'])->name('assign.store');
 
 
 Route::middleware('auth')->group(function () {

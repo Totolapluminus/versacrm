@@ -107,7 +107,7 @@ const avgResponseHuman = computed(() => {
             <!-- KPI Cards -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="rounded-2xl bg-white p-4 shadow-sm">
-                    <div class="text-sm font-semibold text-gray-500">Новые сообщения</div>
+                    <div class="text-sm font-semibold text-gray-500">Новые обращения</div>
                     <div class="text-3xl font-semibold mt-1">{{ kpis.newTickets }}</div>
                 </div>
                 <div class="rounded-2xl bg-white p-4 shadow-sm">

@@ -18,6 +18,8 @@ class TelegramMessageController extends Controller
 
     public function storeIn(StoreInRequest $request){
 
+        Log::info($request->all());
+
         $data = $request->validated();
 
         Log::info('Incoming', $data);
@@ -39,7 +41,7 @@ class TelegramMessageController extends Controller
             'status' => 'open',
         ]);
 
-        TelegramMessage::firstOrCreate([
+        TelegramMessage::Create([
             'telegram_user_id' => $user->id,
             'telegram_chat_id' => $chat->id,
             'text' => $data['text'],
@@ -70,7 +72,7 @@ class TelegramMessageController extends Controller
 
         ////
 
-        $message = TelegramMessage::firstOrCreate([
+        $message = TelegramMessage::Create([
             'telegram_bot_id' => $bot['id'],
             'telegram_chat_id' => $chat['id'],
             'text' => $data['text'],
