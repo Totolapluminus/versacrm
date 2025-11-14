@@ -1,14 +1,14 @@
 <script setup>
-import {ref, nextTick, watch, onMounted} from 'vue'
+import {ref, nextTick, watch, onMounted, onUnmounted} from 'vue'
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import {usePage} from "@inertiajs/vue3";
 import {Link} from "@inertiajs/vue3";
 
 
 const {props} = usePage()
-const bots = props.bots ?? []
+const bots = ref(props.bots ?? [])
 
-console.log(bots)
+console.log(bots.value)
 
 const draft = ref('')
 const scrollEl = ref(null)
@@ -19,6 +19,23 @@ const scrollToBottom = () => {
 }
 
 onMounted(() => scrollToBottom())
+
+onMounted(() => {
+    window.Echo.channel('store-telegram-chat')
+        .listen('.store-telegram-chat', res => {
+            const chat = res.telegramChat
+            const bot = bots.value.find(b => b.id === chat.telegram_bot_id)
+
+            if(!bot) return
+
+            const exists = bot.telegram_chats.some(c => c.id === chat.id)
+            if(!exists) {
+                bot.telegram_chats.push(chat)
+            }
+        })
+})
+
+onUnmounted(() => window.Echo.leave(`store-telegram-chat`))
 
 </script>
 

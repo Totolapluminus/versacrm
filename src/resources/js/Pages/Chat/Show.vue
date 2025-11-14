@@ -11,7 +11,7 @@ import {useEcho} from "@laravel/echo-vue";
 // console.log(echo)
 
 const {props} = usePage()
-const bots = props.bots ?? []
+const bots = ref(props.bots ?? [])
 const currentChatDbId = props.current_chat.id ?? []
 const currentChatTgId = props.current_chat.chat_id ?? []
 const messages = ref(props.current_chat.telegram_messages ?? [])
@@ -42,7 +42,24 @@ onMounted(() => {
         })
 })
 
+onMounted(() => {
+    window.Echo.channel('store-telegram-chat')
+        .listen('.store-telegram-chat', res => {
+            const chat = res.telegramChat
+            const bot = bots.value.find(b => b.id === chat.telegram_bot_id)
+
+            if(!bot) return
+
+            const exists = bot.telegram_chats.some(c => c.id === chat.id)
+            if(!exists) {
+                bot.telegram_chats.push(chat)
+            }
+        })
+})
+
 onUnmounted(() => window.Echo.leave(`store-telegram-message-to-chat-${currentChatDbId}`))
+
+onUnmounted(() => window.Echo.leave(`store-telegram-chat`))
 
 
 async function send() {

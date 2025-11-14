@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Events\StoreTelegramChatEvent;
 use App\Events\StoreTelegramMessageEvent;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\TelegramMessage\StoreInRequest;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\Log;
 
 class TelegramMessageController extends Controller
 {
+    use AuthorizesRequests;
     public function storeIn(StoreInRequest $request){
 
         $data = $request->validated();
@@ -36,7 +38,7 @@ class TelegramMessageController extends Controller
         ]);
 
         $telegramMessage = TelegramMessage::Create([
-            'telegram_user_id' => $user->id,
+             'telegram_user_id' => $user->id,
             'telegram_chat_id' => $chat->id,
             'text' => $data['text'],
             'direction' => $data['direction'],
@@ -44,7 +46,9 @@ class TelegramMessageController extends Controller
 
         Log::info($telegramMessage);
 
-
+        if($chat->wasRecentlyCreated){
+            event(new StoreTelegramChatEvent($chat));
+        }
 
         event(new StoreTelegramMessageEvent($telegramMessage, $chat->id));
 
