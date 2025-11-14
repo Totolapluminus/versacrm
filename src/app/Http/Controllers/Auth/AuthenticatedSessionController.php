@@ -33,7 +33,13 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        $user = $request->user();
+
+        $user->tokens()->delete();
+
+        $token = $user->createToken('crm-api', ['*'])->plainTextToken;
+
+        return redirect()->intended(route('dashboard', absolute: false))->with('api_token', $token);
     }
 
     /**
@@ -41,6 +47,14 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        $user = $request->user();
+
+        if ($user && $user->currentAccessToken()) {
+            $user->currentAccessToken()->delete();
+        }
+
+        //$user?->tokens()->delete();
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();

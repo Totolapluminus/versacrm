@@ -13,9 +13,11 @@ class ChatController extends Controller
     public function index(){
         $bots = TelegramBot::query()
             ->select('id')
-            ->with(['telegramChats' => function ($q){
-                $q->select('id', 'telegram_bot_id', 'telegram_user_id')
-                    ->with(['telegramUser:id,username']);
+            ->whereHas('users', fn($q) => $q->whereKey(auth()->id()))
+            ->with([
+                'telegramChats' => function ($q) {
+                    $q->select('id','telegram_bot_id','telegram_user_id')
+                        ->with(['telegramUser:id,username']);
                 },
             ])
             ->get();
@@ -27,10 +29,12 @@ class ChatController extends Controller
     public function show(TelegramChat $chat){
         $bots = TelegramBot::query()
             ->select('id')
-            ->with(['telegramChats' => function ($q){
-                $q->select('id', 'telegram_bot_id', 'telegram_user_id')
-                    ->with(['telegramUser:id,username']);
-            },
+            ->whereHas('users', fn($q) => $q->whereKey(auth()->id()))
+            ->with([
+                'telegramChats' => function ($q) {
+                    $q->select('id','telegram_bot_id','telegram_user_id')
+                        ->with(['telegramUser:id,username']);
+                },
             ])
             ->get();
         $chat->load([

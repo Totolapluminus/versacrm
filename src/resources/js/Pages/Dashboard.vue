@@ -1,6 +1,16 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import { Head } from '@inertiajs/vue3';
+import {Head, usePage} from '@inertiajs/vue3';
+import axios from "axios";
+
+const { props } = usePage()
+const token = props.flash?.api_token
+console.log(token)
+
+if (token) {
+    localStorage.setItem('crm_token', token)
+    axios.defaults.headers.common.Authorization = `Bearer ${token}`
+}
 
 // Chart.js + vue-chartjs
 import {

@@ -23,6 +23,12 @@ class DatabaseSeeder extends Seeder
             'email' => 'tech@example.com',
         ]);
 
+        User::factory()->create([
+            'name' => 'admin',
+            'role' => 'admin',
+            'email' => 'admin@yandex.ru',
+        ]);
+
         $this->call(TelegramBotsTableSeeder::class);
     }
 }

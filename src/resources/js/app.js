@@ -5,6 +5,7 @@ import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
+import axios from "axios";
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -16,6 +17,12 @@ createInertiaApp({
             import.meta.glob('./Pages/**/*.vue'),
         ),
     setup({ el, App, props, plugin }) {
+
+        const saved = localStorage.getItem('crm_token')
+        if (saved) {
+            axios.defaults.headers.common.Authorization = `Bearer ${saved}`
+        }
+
         return createApp({ render: () => h(App, props) })
             .use(plugin)
             .use(ZiggyVue)

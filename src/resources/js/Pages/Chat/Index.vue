@@ -25,7 +25,7 @@ onMounted(() => scrollToBottom())
 
 <template>
     <AuthenticatedLayout>
-        <div class="grid grid-cols-12 pt-4 gap-4 h-[calc(100vh-8rem)]">
+        <div class="grid grid-cols-12 p-4 gap-4 h-[calc(100vh-4rem)]">
             <!-- слева список чатов (пока заглушка) -->
             <aside class="col-span-3 bg-white rounded-2xl p-3 shadow-sm">
                 <div v-for="bot in bots" :key="bot.id" class="space-y-2">

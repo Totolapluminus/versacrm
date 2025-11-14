@@ -51,7 +51,7 @@ const submit = () => {
 <template>
     <AuthenticatedLayout>
         <div class="py-6 px-40 space-y-6">
-            <h1 class="text-xl font-semibold">Привязка ботов к операторам</h1>
+            <h1 class="text-xl font-semibold">Закрепление ботов за операторами</h1>
 
             <!-- Оператор -->
             <div>

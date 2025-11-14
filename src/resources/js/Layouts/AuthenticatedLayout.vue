@@ -6,6 +6,12 @@ import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import { Link } from '@inertiajs/vue3';
+import axios from 'axios'
+
+function logoutTokenClean() {
+    localStorage.removeItem('crm_token')
+    delete axios.defaults.headers.common.Authorization
+}
 
 const showingNavigationDropdown = ref(false);
 </script>
@@ -47,11 +53,11 @@ const showingNavigationDropdown = ref(false);
                                     Чаты
                                 </NavLink>
 
-                                <NavLink
+                                <NavLink v-if="$page.props.auth.user.role === 'admin'"
                                     :href="route('assign.index')"
                                     :active="route().current('assign.index')"
                                 >
-                                    Доступ
+                                    Доступ к ботам*
                                 </NavLink>
 
                             </div>
@@ -96,6 +102,7 @@ const showingNavigationDropdown = ref(false);
                                             :href="route('logout')"
                                             method="post"
                                             as="button"
+                                            @click="logoutTokenClean"
                                         >
                                             Log Out
                                         </DropdownLink>

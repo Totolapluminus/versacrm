@@ -46,6 +46,8 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect(route('dashboard', absolute: false));
+        $token = $user->createToken('crm-api', ['*'])->plainTextToken;
+
+        return redirect(route('dashboard', absolute: false))->with('api_token', $token);
     }
 }

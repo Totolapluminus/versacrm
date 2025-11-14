@@ -2,36 +2,30 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Events\StoreTelegramMessageEvent;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\TelegramMessage\StoreInRequest;
 use App\Http\Requests\TelegramMessage\StoreOutRequest;
+use App\Http\Resources\TelegramMessageResource;
 use App\Models\TelegramBot;
 use App\Models\TelegramChat;
 use App\Models\TelegramMessage;
 use App\Models\TelegramUser;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class TelegramMessageController extends Controller
 {
-
     public function storeIn(StoreInRequest $request){
 
-        Log::info($request->all());
-
         $data = $request->validated();
-
-        Log::info('Incoming', $data);
-
-        //ОПТИМИЗИРОВАТЬ (запомнить в переменную)?
 
         $user = TelegramUser::firstOrCreate([
             'username' => $data['user_username'] ?? null,
             'telegram_id' => $data['user_id'],
         ]);
-
-        //ОПТИМИЗИРОВАТЬ (запомнить в переменную)?
 
         $chat = TelegramChat::firstOrCreate([
             'telegram_bot_id' => $data['bot_db_id'],
@@ -41,18 +35,26 @@ class TelegramMessageController extends Controller
             'status' => 'open',
         ]);
 
-        TelegramMessage::Create([
+        $telegramMessage = TelegramMessage::Create([
             'telegram_user_id' => $user->id,
             'telegram_chat_id' => $chat->id,
             'text' => $data['text'],
             'direction' => $data['direction'],
         ]);
 
+        Log::info($telegramMessage);
+
+
+
+        event(new StoreTelegramMessageEvent($telegramMessage, $chat->id));
+
         return response()->json(['status' => 'ok'], 200);
     }
 
 
-    public function storeOut(StoreOutRequest $request){
+    public function storeOut(StoreOutRequest $request, TelegramChat $chat){
+
+        $this->authorize('view', $chat);
 
         $data = $request->validated();
 

@@ -12,7 +12,7 @@ class AssignController extends Controller
 {
     public function index(){
 
-        $users = User::with('telegramBots')->where('role', '!=', 'tech')->get();
+        $users = User::with('telegramBots')->where('role', 'operator')->get();
 
         $bots = TelegramBot::select('id')->get();
         return Inertia::render('Assign/Index', [
@@ -25,7 +25,7 @@ class AssignController extends Controller
 
         $data = $request->validated();
 
-        $user = User::where('role', '!=', 'tech')->findOrFail($data['user_id']);
+        $user = User::where('role', 'operator')->findOrFail($data['user_id']);
         $user->telegramBots()->sync($data['bot_ids'] ?? []);
 
         return redirect()->route('assign.index')->with('success', 'Связи обновлены');

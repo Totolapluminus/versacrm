@@ -1,21 +1,20 @@
 <script setup>
-import {ref, nextTick, watch, onMounted} from 'vue'
+import {ref, nextTick, watch, onMounted, onUnmounted} from 'vue'
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import {usePage} from "@inertiajs/vue3";
 import axios from "axios";
 import {Link} from "@inertiajs/vue3";
+import {useEcho} from "@laravel/echo-vue";
 
+// const echo = useEcho()
+//
+// console.log(echo)
 
 const {props} = usePage()
 const bots = props.bots ?? []
 const currentChatDbId = props.current_chat.id ?? []
 const currentChatTgId = props.current_chat.chat_id ?? []
 const messages = ref(props.current_chat.telegram_messages ?? [])
-
-console.log(bots)
-console.log(messages.value)
-console.log(currentChatDbId)
-console.log(currentChatTgId)
 
 
 const draft = ref('')
@@ -32,7 +31,18 @@ watch(messages, async () => {
     await nextTick();
     scrollToBottom()
 })
+
 onMounted(() => scrollToBottom())
+
+onMounted(() => {
+    window.Echo.channel(`store-telegram-message-to-chat-${currentChatDbId}`)
+        .listen('.store-telegram-message-to-chat', res => {
+            messages.value.push(res.telegramMessage)
+            console.log(res.telegramMessage)
+        })
+})
+
+onUnmounted(() => window.Echo.leave(`store-telegram-message-to-chat-${currentChatDbId}`))
 
 
 async function send() {
@@ -55,7 +65,7 @@ async function send() {
 
     //отправка данных на бекенд
     try {
-        const response = await axios.post(`/api/chat`, {
+        const response = await axios.post(`/api/chat/${currentChatDbId}`, {
             direction: 'out',
             text: text,
             telegram_chat_db_id: currentChatDbId,
@@ -79,7 +89,7 @@ async function send() {
 
 <template>
     <AuthenticatedLayout>
-        <div class="grid grid-cols-12 py-4 gap-4 h-[calc(100vh-8rem)]">
+        <div class="grid grid-cols-12 p-4 gap-4 h-[calc(100vh-4rem)]">
             <!-- слева список чатов (пока заглушка) -->
             <aside class="col-span-3 bg-white rounded-2xl p-3 shadow-sm">
                 <div v-for="bot in bots" :key="bot.id" class="space-y-2">

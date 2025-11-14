@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\API\TelegramMessageController;
 use App\Http\Controllers\AssignController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ProfileController;
@@ -23,10 +24,10 @@ Route::get('/dashboard', function () {
 
 
 Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
-Route::get('/chat/{chat}', [ChatController::class, 'show'])->name('chat.show');
+Route::get('/chat/{chat}', [ChatController::class, 'show'])->name('chat.show')->middleware(['auth', 'can:view,chat']);
 
-Route::get('/assign', [AssignController::class, 'index'])->name('assign.index');
-Route::post('/assign', [AssignController::class, 'store'])->name('assign.store');
+Route::get('/assign', [AssignController::class, 'index'])->name('assign.index')->middleware(['auth', 'can:admin']);
+Route::post('/assign', [AssignController::class, 'store'])->name('assign.store')->middleware(['auth', 'can:admin']);
 
 
 Route::middleware('auth')->group(function () {
