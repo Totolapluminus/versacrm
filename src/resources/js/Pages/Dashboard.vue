@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue'
-import {Head, router, usePage} from '@inertiajs/vue3'
-import {computed, ref} from 'vue'
+import {Head, usePage, router} from '@inertiajs/vue3'
+import {computed, onMounted, ref, watch} from 'vue'
 import {Line} from 'vue-chartjs'
 import {
     Chart as ChartJS, Title, Tooltip, Legend,
@@ -12,8 +12,26 @@ ChartJS.register(Title, Tooltip, Legend, LineElement, PointElement, CategoryScal
 
 const {props} = usePage()
 const user = props.user
+const operators = ref(props.operators ?? [])
+const selectedOperatorId = ref(props.selectedOperatorId ?? '')
 const kpis = ref(props.kpis)
 const chart = ref(props.chart)
+
+onMounted(() => {
+    const token = props.flash?.api_token
+
+    if (token) {
+        localStorage.setItem('token', token)
+        axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+        console.log('Токен сохранён и установлен в axios')
+    } else {
+        const saved = localStorage.getItem('token')
+        if (saved) {
+            axios.defaults.headers.common['Authorization'] = `Bearer ${saved}`
+            console.log('Токен взят из localStorage')
+        }
+    }
+})
 
 const lineData = computed(() => ({
     labels: chart.value.labels ?? [],
@@ -32,6 +50,11 @@ const lineOpts = {
     maintainAspectRatio: false,
     plugins: {legend: {position: 'bottom'}}
 }
+
+// При изменении оператора обновляем данные через Inertia
+watch(selectedOperatorId, (newVal) => {
+    router.get(route('dashboard'), { operator_id: newVal }, { preserveState: false })
+})
 </script>
 
 <template>
@@ -41,10 +64,9 @@ const lineOpts = {
             <h2 class="text-xl font-semibold text-gray-800">Дашборд</h2>
         </template>
 
+        <!-- Оператор -->
         <div v-if="user.role === 'operator'" class="space-y-6 py-8 px-40">
-            <h3 class="text-2xl font-semibold mb-4">Личная статистика</h3>
 
-            <!-- KPI -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="rounded-2xl bg-white p-4 shadow-sm">
                     <div class="text-sm font-semibold text-gray-500">Новые обращения</div>
@@ -64,16 +86,27 @@ const lineOpts = {
                 </div>
             </div>
 
-            <!-- Line Chart -->
             <div class="rounded-2xl bg-white p-4 shadow-sm h-80">
                 <Line :data="lineData" :options="lineOpts"/>
             </div>
         </div>
 
+        <!-- Админ -->
         <div v-else-if="user.role === 'admin'" class="space-y-6 py-8 px-40">
-            <h3 class="text-2xl font-semibold mb-4">Общая статистика системы</h3>
+            <div class="flex items-center justify-between">
+                <h3 class="text-2xl font-semibold mb-4">
+                    {{ selectedOperatorId ? 'Статистика оператора' : 'Общая статистика системы' }}
+                </h3>
 
-            <!-- Общие KPI -->
+                <select v-model="selectedOperatorId"
+                        class="border rounded-lg px-3 py-2 text-sm focus:ring focus:ring-blue-200">
+                    <option value="">Общая статистика</option>
+                    <option v-for="op in operators" :key="op.id" :value="op.id">
+                        {{ op.name }}
+                    </option>
+                </select>
+            </div>
+
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div class="rounded-2xl bg-white p-4 shadow-sm">
                     <div class="text-sm font-semibold text-gray-500">Открытых обращений</div>
@@ -93,11 +126,9 @@ const lineOpts = {
                 </div>
             </div>
 
-            <!-- График обращений -->
             <div class="rounded-2xl bg-white p-4 shadow-sm h-80">
                 <Line :data="lineData" :options="lineOpts" />
             </div>
-
         </div>
     </AuthenticatedLayout>
 </template>

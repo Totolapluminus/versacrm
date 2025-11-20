@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\TelegramBot;
 use App\Models\TelegramChat;
 use App\Models\TelegramMessage;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,13 +14,23 @@ use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = Auth::user();
 
-        if ($user->role === 'operator') {
+        // Для админа можно выбрать оператора
+        $operatorId = $request->get('operator_id');
 
-            $botIds = $user->telegramBots()->pluck('telegram_bots.id');
+        if ($user->role === 'operator') {
+            $targetUser = $user;
+        } elseif ($user->role === 'admin' && $operatorId) {
+            $targetUser = User::find($operatorId);
+        } else {
+            $targetUser = null;
+        }
+
+        if ($targetUser) {
+            $botIds = $targetUser->telegramBots()->pluck('telegram_bots.id');
 
             $newTickets = TelegramChat::whereIn('telegram_bot_id', $botIds)
                 ->where('status', 'open')
@@ -36,7 +47,6 @@ class DashboardController extends Controller
             })->count();
 
             $kpis = compact('newTickets', 'closedTickets', 'totalBots', 'totalMessages');
-
 
             $rows = TelegramMessage::selectRaw('DATE(created_at) as day, COUNT(*) as cnt')
                 ->whereHas('telegramChat', fn($q) => $q->whereIn('telegram_bot_id', $botIds))
@@ -68,8 +78,19 @@ class DashboardController extends Controller
             ]];
         }
 
+        // Для селекта админа — список всех операторов
+        $operators = [];
+        if ($user->role === 'admin') {
+            $operators = User::where('role', 'operator')
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get();
+        }
+
         return Inertia::render('Dashboard', [
             'user' => $user,
+            'operators' => $operators,
+            'selectedOperatorId' => $operatorId,
             'kpis' => $kpis,
             'chart' => [
                 'labels' => $labels,

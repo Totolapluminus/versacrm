@@ -9,7 +9,7 @@ import { Link } from '@inertiajs/vue3';
 import axios from 'axios'
 
 function logoutTokenClean() {
-    localStorage.removeItem('crm_token')
+    localStorage.removeItem('token')
     delete axios.defaults.headers.common.Authorization
 }
 
