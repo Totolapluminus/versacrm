@@ -4,11 +4,6 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import {usePage} from "@inertiajs/vue3";
 import axios from "axios";
 import {Link} from "@inertiajs/vue3";
-import {useEcho} from "@laravel/echo-vue";
-
-// const echo = useEcho()
-//
-// console.log(echo)
 
 const {props} = usePage()
 const user = props.user ?? 'none'

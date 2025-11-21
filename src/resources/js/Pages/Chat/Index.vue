@@ -1,5 +1,5 @@
 <script setup>
-import {ref, nextTick, watch, onMounted, onUnmounted} from 'vue'
+import {ref, onMounted, onUnmounted} from 'vue'
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import {usePage} from "@inertiajs/vue3";
 import {Link} from "@inertiajs/vue3";
@@ -51,7 +51,6 @@ onUnmounted(() => window.Echo.leave(`store-telegram-chat`))
                     <h2>Бот №{{bot.id}}</h2>
                     <div v-for="chat in bot.telegram_chats">
                         <div v-if="user.id === chat.user_id" class="p-3 rounded-xl my-2 bg-blue-200">
-                            {{console.log(chat)}}
                             <Link :href="route('chat.show', chat.id)" >
                                 Чат с {{ chat.telegram_user?.username || chat.telegram_user?.first_name }}
                             </Link>
