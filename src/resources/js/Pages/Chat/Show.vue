@@ -11,13 +11,15 @@ import {useEcho} from "@laravel/echo-vue";
 // console.log(echo)
 
 const {props} = usePage()
+const user = props.user ?? 'none'
+const operators = props.operators ?? []
 const bots = ref(props.bots ?? [])
 const currentChatDbId = props.current_chat.id ?? []
 const currentChatTgId = props.current_chat.chat_id ?? []
 const messages = ref(props.current_chat.telegram_messages ?? [])
 
 const chatStatus = ref(props.current_chat.status ?? 'none')
-
+const chatOperator = ref(props.current_chat.user_id ?? 'none')
 
 const draft = ref('')
 const scrollEl = ref(null)
@@ -43,7 +45,6 @@ onMounted(() => {
             console.log(res.telegramMessage)
         })
 })
-
 onMounted(() => {
     window.Echo.channel('store-telegram-chat')
         .listen('.store-telegram-chat', res => {
@@ -58,9 +59,7 @@ onMounted(() => {
             }
         })
 })
-
 onUnmounted(() => window.Echo.leave(`store-telegram-message-to-chat-${currentChatDbId}`))
-
 onUnmounted(() => window.Echo.leave(`store-telegram-chat`))
 
 
@@ -103,6 +102,16 @@ async function send() {
     }
 }
 
+async function updateOperator()  {
+    try {
+        await axios.put(`/api/chat/${currentChatDbId}/operator`, {
+            user_id: chatOperator.value,
+        })
+        console.log("Оператор обновлён:", chatOperator.value)
+    } catch (e) {
+        console.error("Ошибка смены оператора", e)
+    }
+}
 async function updateStatus() {
     console.log(chatStatus.value)
     try {
@@ -126,13 +135,23 @@ async function updateStatus() {
             <aside class="col-span-3 bg-white rounded-2xl p-3 shadow-sm">
                 <div v-for="bot in bots" :key="bot.id" class="space-y-2">
                     <h2>Бот №{{bot.id}}</h2>
-                    <div v-for="chat in bot.telegram_chats" :class="[
+                    <div v-for="chat in bot.telegram_chats">
+                        <div v-if="user.id === chat.user_id" :class="[
+                        'p-3 rounded-xl my-2',
+                        chat.id === props.current_chat?.id ? 'bg-blue-400 text-white' : 'bg-blue-100'
+                        ]">
+                            <Link :href="route('chat.show', chat.id)" >
+                                Чат с {{ chat.telegram_user?.username || chat.telegram_user?.first_name }}
+                            </Link>
+                        </div>
+                        <div v-else :class="[
                         'p-3 rounded-xl my-2',
                         chat.id === props.current_chat?.id ? 'bg-blue-400 text-white' : 'bg-slate-100'
-                    ]">
-                        <Link :href="route('chat.show', chat.id)" >
-                            Чат с {{ chat.telegram_user?.username || 'Без имени' }}
-                        </Link>
+                        ]">
+                            <Link :href="route('chat.show', chat.id)" >
+                                Чат с {{ chat.telegram_user?.username || chat.telegram_user?.first_name }}
+                            </Link>
+                        </div>
                     </div>
                 </div>
             </aside>
@@ -186,6 +205,26 @@ async function updateStatus() {
                             <option value="in_progress">В работе</option>
                             <option value="closed">Закрыт</option>
                         </select>
+                    </div>
+                    <div>
+                        <label for="operator" class="text-sm text-slate-600 mb-1 block">Оператор:</label>
+
+                        <select
+                            id="operator"
+                            v-model="chatOperator"
+                            @change="updateOperator"
+                            class="w-full border rounded-lg px-3 py-1 text-sm focus:outline-none focus:ring focus:ring-blue-200"
+                        >
+                            <option disabled value="">Выберите оператора</option>
+                            <option
+                                v-for="operator in operators"
+                                :key="operator.id"
+                                :value="operator.id"
+                            >
+                                {{ operator.name }}
+                            </option>
+                        </select>
+
                     </div>
                 </aside>
             </section>

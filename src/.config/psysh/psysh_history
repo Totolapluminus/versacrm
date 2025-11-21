@@ -26,3 +26,7 @@ $token = $u->createToken('crm-bot')->plainTextToken;
 $u = App\Models\User::where('id', 3)->get();
 $u = App\Models\User::find(3)
 $token = $u->createToken('crm-api', ['*'])->plainTextToken;
+$u = App\Models\User::first();
+$token = $u->createToken('crm-bot')->plainTextToken;
+$u = App\Models\User::first();
+$token = $u->createToken('crm-bot')->plainTextToken;

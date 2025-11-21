@@ -12,6 +12,7 @@ use App\Models\TelegramBot;
 use App\Models\TelegramChat;
 use App\Models\TelegramMessage;
 use App\Models\TelegramUser;
+use App\Models\User;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -24,21 +25,35 @@ class TelegramMessageController extends Controller
 
         $data = $request->validated();
 
-        $user = TelegramUser::firstOrCreate([
+        $user = User::where('role', 'operator')
+        ->whereHas('telegramBots', function ($q) use ($data) {
+            $q->where('telegram_bots.id', $data['bot_db_id']);
+        })
+            ->withCount(['telegramChats as active_chats_count' => function($q) {
+                $q->whereIn('status', ['open', 'active']);
+            }])
+            ->orderBy('active_chats_count', 'asc')
+            ->orderBy('id', 'asc')
+            ->first();
+
+        $telegramUser = TelegramUser::firstOrCreate([
             'username' => $data['user_username'] ?? null,
+            'first_name' => $data['user_first_name'] ?? null,
+            'last_name' => $data['user_last_name'] ?? null,
             'telegram_id' => $data['user_id'],
         ]);
 
         $chat = TelegramChat::firstOrCreate([
             'telegram_bot_id' => $data['bot_db_id'],
-            'telegram_user_id' => $user->id,
+            'telegram_user_id' => $telegramUser->id,
+            'user_id' => $user?->id,
             'chat_id' => $data['chat_id'],
             'type' => $data['chat_type'],
             'status' => 'open',
         ]);
 
         $telegramMessage = TelegramMessage::Create([
-             'telegram_user_id' => $user->id,
+            'telegram_user_id' => $telegramUser->id,
             'telegram_chat_id' => $chat->id,
             'text' => $data['text'],
             'direction' => $data['direction'],

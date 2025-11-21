@@ -40,6 +40,8 @@ def make_bot(token: str, id: int):
         payload = {
             'user_id': message.from_user.id if message.from_user else None,
             'user_username': message.from_user.username if message.from_user else None,
+            'user_first_name': message.from_user.first_name if message.from_user else None,
+            'user_last_name': message.from_user.last_name if message.from_user else None,
             'chat_id': message.chat.id,
             'chat_type': message.chat.type,
             'direction': 'in',

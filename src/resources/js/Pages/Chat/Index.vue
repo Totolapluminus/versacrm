@@ -6,8 +6,10 @@ import {Link} from "@inertiajs/vue3";
 
 
 const {props} = usePage()
+const user = props.user ?? 'none'
 const bots = ref(props.bots ?? [])
 
+console.log(user.id)
 console.log(bots.value)
 
 const draft = ref('')
@@ -48,9 +50,15 @@ onUnmounted(() => window.Echo.leave(`store-telegram-chat`))
                 <div v-for="bot in bots" :key="bot.id" class="space-y-2">
                     <h2>Бот №{{bot.id}}</h2>
                     <div v-for="chat in bot.telegram_chats">
-                        <div class="p-3 rounded-xl my-2 bg-slate-100">
+                        <div v-if="user.id === chat.user_id" class="p-3 rounded-xl my-2 bg-blue-200">
+                            {{console.log(chat)}}
                             <Link :href="route('chat.show', chat.id)" >
-                                Чат с {{ chat.telegram_user?.username || 'Без имени' }}
+                                Чат с {{ chat.telegram_user?.username || chat.telegram_user?.first_name }}
+                            </Link>
+                        </div>
+                        <div v-else class="p-3 rounded-xl my-2 bg-slate-100">
+                            <Link :href="route('chat.show', chat.id)" >
+                                Чат с {{ chat.telegram_user?.username || chat.telegram_user?.first_name }}
                             </Link>
                         </div>
                     </div>

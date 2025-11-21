@@ -18,9 +18,9 @@ createInertiaApp({
         ),
     setup({ el, App, props, plugin }) {
 
-        const saved = localStorage.getItem('crm_token')
+        const saved = localStorage.getItem('token')
         if (saved) {
-            axios.defaults.headers.common.Authorization = `Bearer ${saved}`
+            axios.defaults.headers.common['Authorization'] = `Bearer ${saved}`
         }
 
         return createApp({ render: () => h(App, props) })

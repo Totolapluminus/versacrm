@@ -13,6 +13,8 @@ return new class extends Migration
     {
         Schema::create('telegram_bots', function (Blueprint $table) {
             $table->id();
+            $table->unsignedBigInteger('telegram_id');
+            $table->string('username');
             $table->text('token');
             $table->timestamps();
         });

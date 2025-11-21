@@ -27,6 +27,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'admin',
             'role' => 'admin',
             'email' => 'admin@yandex.ru',
+            'password' => '12341234'
         ]);
 
         $this->call(TelegramBotsTableSeeder::class);

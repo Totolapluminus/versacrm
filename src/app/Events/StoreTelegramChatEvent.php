@@ -48,8 +48,10 @@ class StoreTelegramChatEvent implements ShouldBroadcast
                 'telegram_user' => [
                     'id' => $this->telegramChat->telegramUser?->id,
                     'username' => $this->telegramChat->telegramUser?->username,
+                    'first_name' => $this->telegramChat->telegramUser?->first_name,
                 ],
-                'telegram_bot_id' => $this->telegramChat->telegram_bot_id
+                'telegram_bot_id' => $this->telegramChat->telegram_bot_id,
+                'user_id' => $this->telegramChat->user_id
             ]
         ];
     }

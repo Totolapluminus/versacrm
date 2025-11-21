@@ -16,6 +16,8 @@ Route::post('/messages', [TelegramMessageController::class, 'storeIn'])->name('m
 Route::post('/chat/{chat}', [TelegramMessageController::class, 'storeOut'])->name('messages.storeOut')->middleware('auth:sanctum');
 
 Route::put('/chat/{chat}/status', [\App\Http\Controllers\API\ChatController::class, 'updateStatus'])->name('chat.updateStatus')->middleware('auth:sanctum');
+Route::put('/chat/{chat}/operator', [\App\Http\Controllers\API\ChatController::class, 'updateOperator'])->name('chat.updateOperator')->middleware('auth:sanctum');
+
 
 //Route::get('/user', function (Request $request) {
 //    return $request->user();

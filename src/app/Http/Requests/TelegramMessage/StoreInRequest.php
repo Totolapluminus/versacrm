@@ -24,6 +24,8 @@ class StoreInRequest extends FormRequest
         return [
             'user_id' => 'required|numeric',
             'user_username' => 'nullable|string',
+            'user_first_name' => 'nullable|string',
+            'user_last_name' => 'nullable|string',
             'chat_id' => 'required|numeric',
             'chat_type' => 'required|string',
             'direction' => 'required|string',
