@@ -2,9 +2,7 @@
 
 namespace App\Events;
 
-use App\Http\Resources\TelegramMessageResource;
 use App\Models\TelegramChat;
-use App\Models\TelegramMessage;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -13,19 +11,17 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class StoreTelegramMessageEvent implements ShouldBroadcast
+class NewMessageNotificationEvent implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    private TelegramMessage $telegramMessage;
     private TelegramChat $telegramChat;
 
     /**
      * Create a new event instance.
      */
-    public function __construct(TelegramMessage $telegramMessage, TelegramChat $telegramChat)
+    public function __construct(TelegramChat $telegramChat)
     {
-        $this->telegramMessage = $telegramMessage;
         $this->telegramChat = $telegramChat;
     }
 
@@ -37,7 +33,7 @@ class StoreTelegramMessageEvent implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('store-telegram-message-to-chat-' . $this->telegramChat->id),
+            new Channel('notification-on-message-to-user-' . $this->telegramChat->user_id),
         ];
     }
 
@@ -46,7 +42,7 @@ class StoreTelegramMessageEvent implements ShouldBroadcast
      */
     public function broadcastAs(): string
     {
-        return 'store-telegram-message-to-chat';
+        return 'notification-on-message-to-user';
     }
 
     /**
@@ -57,7 +53,8 @@ class StoreTelegramMessageEvent implements ShouldBroadcast
     public function broadcastWith(): array
     {
         return [
-            'telegramMessage' => TelegramMessageResource::make($this->telegramMessage)->resolve()
+            'chat_id' => $this->telegramChat->id,
+            'operator_id' => $this->telegramChat->user_id,
         ];
     }
 }

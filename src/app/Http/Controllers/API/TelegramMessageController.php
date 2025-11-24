@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Events\NewMessageNotificationEvent;
 use App\Events\StoreTelegramChatEvent;
 use App\Events\StoreTelegramMessageEvent;
 use App\Http\Controllers\Controller;
@@ -43,14 +44,18 @@ class TelegramMessageController extends Controller
             'telegram_id' => $data['user_id'],
         ]);
 
-        $chat = TelegramChat::firstOrCreate([
-            'telegram_bot_id' => $data['bot_db_id'],
-            'telegram_user_id' => $telegramUser->id,
-            'user_id' => $user?->id,
-            'chat_id' => $data['chat_id'],
-            'type' => $data['chat_type'],
-            'status' => 'open',
-        ]);
+        $chat = TelegramChat::firstOrCreate(
+            [
+                'telegram_bot_id' => $data['bot_db_id'],
+                'telegram_user_id' => $telegramUser->id,
+                'chat_id' => $data['chat_id'],
+            ],
+            [
+                'type' => $data['chat_type'],
+                'status' => 'open',
+                'user_id' => $user?->id,
+            ]
+        );
 
         $telegramMessage = TelegramMessage::Create([
             'telegram_user_id' => $telegramUser->id,
@@ -65,7 +70,8 @@ class TelegramMessageController extends Controller
             event(new StoreTelegramChatEvent($chat));
         }
 
-        event(new StoreTelegramMessageEvent($telegramMessage, $chat->id));
+        event(new StoreTelegramMessageEvent($telegramMessage, $chat));
+        event(new NewMessageNotificationEvent($chat));
 
         return response()->json(['status' => 'ok'], 200);
     }

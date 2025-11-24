@@ -1,11 +1,11 @@
 <script setup>
-import { ref } from 'vue';
+import {onMounted, onUnmounted, ref} from 'vue';
 import ApplicationLogo from '@/Components/ApplicationLogo.vue';
 import Dropdown from '@/Components/Dropdown.vue';
 import DropdownLink from '@/Components/DropdownLink.vue';
 import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
-import { Link } from '@inertiajs/vue3';
+import {Link, usePage} from '@inertiajs/vue3';
 import axios from 'axios'
 
 function logoutTokenClean() {
@@ -14,6 +14,29 @@ function logoutTokenClean() {
 }
 
 const showingNavigationDropdown = ref(false);
+
+const user = usePage().props.auth.user
+
+const notifications = ref([])
+
+onMounted(() => {
+    if (!user) return
+
+    window.Echo.channel(`notification-on-message-to-user-${user.id}`)
+        .listen('.notification-on-message-to-user', (data) => {
+            console.log('NOTIFICATION:', data)
+            notifications.value.push(data)
+        })
+
+    console.log('Subscribed to', channelName)
+})
+
+// 🔥 Отписка при разрушении компонента
+onUnmounted(() => {
+    if (!user) return
+    window.Echo.leave(`notification-on-message-to-user-${user.id}`)
+})
+
 </script>
 
 <template>

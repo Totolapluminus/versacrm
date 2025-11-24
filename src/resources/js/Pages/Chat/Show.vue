@@ -34,7 +34,7 @@ watch(messages, async () => {
 onMounted(() => scrollToBottom())
 
 onMounted(() => {
-    window.Echo.channel(`store-telegram-message-to-chat-${currentChatDbId}`)
+    window.Echo.private(`store-telegram-message-to-chat-${currentChatDbId}`)
         .listen('.store-telegram-message-to-chat', res => {
             messages.value.push(res.telegramMessage)
             console.log(res.telegramMessage)

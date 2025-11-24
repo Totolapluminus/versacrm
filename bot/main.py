@@ -15,6 +15,8 @@ headers = {
 #GET ALL BOTS
 resp = requests.get(f"{LARAVEL_API_URL}/api/telegram-bots", headers=headers, timeout=10)
 resp.raise_for_status()
+print("STATUS:", resp.status_code)
+print("TEXT:", resp.text)
 bots_data = resp.json() or []
 
 def make_bot(token: str, id: int):
