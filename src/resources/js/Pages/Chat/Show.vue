@@ -4,6 +4,8 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import {usePage} from "@inertiajs/vue3";
 import axios from "axios";
 import {Link} from "@inertiajs/vue3";
+import { useNotificationStore } from '@/Stores/notificationStore'
+const notificationStore = useNotificationStore()
 
 const {props} = usePage()
 const user = props.user ?? 'none'
@@ -18,6 +20,9 @@ const chatOperator = ref(props.current_chat.user_id ?? 'none')
 
 const draft = ref('')
 const scrollEl = ref(null)
+
+
+notificationStore.clearChat(currentChatDbId)
 
 
 const scrollToBottom = () => {

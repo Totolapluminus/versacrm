@@ -7,6 +7,7 @@ import NavLink from '@/Components/NavLink.vue';
 import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
 import {Link, usePage} from '@inertiajs/vue3';
 import axios from 'axios'
+import {useNotificationStore} from "@/Stores/notificationStore.js";
 
 function logoutTokenClean() {
     localStorage.removeItem('token')
@@ -17,7 +18,7 @@ const showingNavigationDropdown = ref(false);
 
 const user = usePage().props.auth.user
 
-const notifications = ref([])
+const notificationStore = useNotificationStore()
 
 onMounted(() => {
     if (!user) return
@@ -25,13 +26,12 @@ onMounted(() => {
     window.Echo.channel(`notification-on-message-to-user-${user.id}`)
         .listen('.notification-on-message-to-user', (data) => {
             console.log('NOTIFICATION:', data)
-            notifications.value.push(data)
+            notificationStore.addChat(data.chat_id)
         })
 
-    console.log('Subscribed to', channelName)
+    console.log('Subscribed to', `notification-on-message-to-user-${user.id}`)
 })
 
-// 🔥 Отписка при разрушении компонента
 onUnmounted(() => {
     if (!user) return
     window.Echo.leave(`notification-on-message-to-user-${user.id}`)
@@ -69,16 +69,25 @@ onUnmounted(() => {
                                     Главная
                                 </NavLink>
 
-                                <NavLink
-                                    :href="route('chat.index')"
-                                    :active="route().current('chat.index') || route().current('chat.show')"
-                                >
-                                    Чаты
-                                </NavLink>
+                                <div class="relative space-x-8 sm:ms-10 sm:flex">
+                                    <NavLink
+                                        :href="route('chat.index')"
+                                        :active="route().current('chat.index') || route().current('chat.show')"
+                                    >
+                                        Чаты
+                                    </NavLink>
+
+                                    <span
+                                        v-if="notificationStore.count() > 0"
+                                        class="absolute -top-1 -right-3 bg-red-600 text-white text-xs font-semibold rounded-full px-2 py-[1px]"
+                                    >
+                                    {{ notificationStore.count() }}
+                                    </span>
+                                </div>
 
                                 <NavLink v-if="$page.props.auth.user.role === 'admin'"
-                                    :href="route('assign.index')"
-                                    :active="route().current('assign.index')"
+                                         :href="route('assign.index')"
+                                         :active="route().current('assign.index')"
                                 >
                                     Доступ к ботам*
                                 </NavLink>
@@ -231,13 +240,13 @@ onUnmounted(() => {
                 v-if="$slots.header"
             >
                 <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                    <slot name="header" />
+                    <slot name="header"/>
                 </div>
             </header>
 
             <!-- Page Content -->
             <main>
-                <slot />
+                <slot/>
             </main>
         </div>
     </div>

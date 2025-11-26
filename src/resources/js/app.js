@@ -6,6 +6,7 @@ import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import axios from "axios";
+import { createPinia } from 'pinia'
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -23,9 +24,12 @@ createInertiaApp({
             axios.defaults.headers.common['Authorization'] = `Bearer ${saved}`
         }
 
+        const pinia = createPinia()
+
         return createApp({ render: () => h(App, props) })
             .use(plugin)
             .use(ZiggyVue)
+            .use(pinia)
             .mount(el);
     },
     progress: {
