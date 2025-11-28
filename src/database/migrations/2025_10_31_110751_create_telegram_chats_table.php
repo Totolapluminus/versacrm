@@ -22,6 +22,7 @@ return new class extends Migration
             $table->UnsignedBigInteger('chat_id');
             $table->string('type', 32)->nullable();
             $table->enum('status', ['open', 'in_progress', 'closed'])->default('open');
+            $table->boolean('has_new')->default(false);
             $table->timestamps();
         });
     }

@@ -79,7 +79,7 @@ onUnmounted(() => {
 
                                     <span
                                         v-if="notificationStore.count() > 0"
-                                        class="absolute -top-1 -right-3 bg-red-600 text-white text-xs font-semibold rounded-full px-2 py-[1px]"
+                                        class="absolute top-2 -right-3 bg-red-600 text-white text-xs font-semibold rounded-full px-2 py-[1px]"
                                     >
                                     {{ notificationStore.count() }}
                                     </span>

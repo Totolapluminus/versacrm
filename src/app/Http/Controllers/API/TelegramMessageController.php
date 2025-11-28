@@ -64,12 +64,11 @@ class TelegramMessageController extends Controller
             'direction' => $data['direction'],
         ]);
 
-        Log::info($telegramMessage);
+        $chat->update(['has_new' => true]);
 
-        if($chat->wasRecentlyCreated){
-            event(new StoreTelegramChatEvent($chat));
-        }
+        Log::info($chat);
 
+        event(new StoreTelegramChatEvent($chat));
         event(new StoreTelegramMessageEvent($telegramMessage, $chat));
         event(new NewMessageNotificationEvent($chat));
 
@@ -83,28 +82,26 @@ class TelegramMessageController extends Controller
 
         $data = $request->validated();
 
-        $chat = TelegramChat::query()
-            ->select('id','telegram_bot_id','chat_id')
-            ->with(['telegramBot:id,token'])
-            ->findOrFail($data['telegram_chat_db_id']);
+        $chat->load('telegramBot:id,token');
 
-        $bot = $chat->telegramBot;
+        $token = $chat->telegramBot->token;
 
-        $token = $bot->token;
-
-        $res = Http::post("https://api.telegram.org/bot{$token}/sendMessage", [
+        Http::post("https://api.telegram.org/bot{$token}/sendMessage", [
             'chat_id' => $chat['chat_id'],
             'text' => $data['text'],
         ])->throw()->json();
 
-        ////
 
         $message = TelegramMessage::Create([
-            'telegram_bot_id' => $bot['id'],
+            'telegram_bot_id' => $chat->telegramBot->id,
             'telegram_chat_id' => $chat['id'],
             'text' => $data['text'],
             'direction' => $data['direction'],
         ]);
+
+        if($chat->status === 'open'){
+            $chat->update(['status'=>'in_progress']);
+        }
 
         return response()->json($message, 201);
     }
