@@ -31,7 +31,7 @@ class TelegramMessageController extends Controller
             $q->where('telegram_bots.id', $data['bot_db_id']);
         })
             ->withCount(['telegramChats as active_chats_count' => function($q) {
-                $q->whereIn('status', ['open', 'active']);
+                $q->whereIn('status', ['open', 'in_progress']);
             }])
             ->orderBy('active_chats_count', 'asc')
             ->orderBy('id', 'asc')

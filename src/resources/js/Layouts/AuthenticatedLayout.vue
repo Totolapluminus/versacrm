@@ -128,7 +128,7 @@ onUnmounted(() => {
                                         <DropdownLink
                                             :href="route('profile.edit')"
                                         >
-                                            Profile
+                                            Профиль
                                         </DropdownLink>
                                         <DropdownLink
                                             :href="route('logout')"
@@ -136,7 +136,7 @@ onUnmounted(() => {
                                             as="button"
                                             @click="logoutTokenClean"
                                         >
-                                            Log Out
+                                            Выйти
                                         </DropdownLink>
                                     </template>
                                 </Dropdown>
