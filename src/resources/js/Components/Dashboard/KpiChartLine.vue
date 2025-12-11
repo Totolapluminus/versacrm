@@ -67,7 +67,7 @@ const lineOpts = {
 </script>
 
 <template>
-    <div class="rounded-2xl bg-white p-4 shadow-sm h-80">
+    <div class="rounded-2xl bg-white p-4 shadow-md h-80">
         <Line :data="lineData" :options="lineOpts" />
     </div>
 </template>

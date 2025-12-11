@@ -28,7 +28,7 @@ onMounted(() => {
             const chat = res.telegramChat
             console.log(chat)
             const bot = bots.value.find(b => b.id === chat.telegram_bot_id)
-            if(!bot) return
+            if (!bot) return
 
             const found = bot.telegram_chats.find(c => c.id === chat.id)
             if (found) {
@@ -47,35 +47,43 @@ onUnmounted(() => window.Echo.leave(`store-telegram-chat`))
 
 <template>
     <AuthenticatedLayout>
-        <div class="grid grid-cols-12 p-4 gap-4 h-[calc(100vh-4.5rem)]">
+        <div class="bg-white grid grid-cols-12 min-h-[calc(100vh-4rem)]">
             <!-- слева список чатов (пока заглушка) -->
-            <aside class="col-span-3 bg-white rounded-2xl p-3 shadow-sm">
-                <div v-for="bot in bots" :key="bot.id" class="space-y-2">
-                    <h2>Бот "{{bot.username}}"</h2>
-                    <div v-for="chat in bot.telegram_chats">
-                        <div v-if="user.id === chat.user_id" class="flex justify-between items-center p-3 rounded-xl my-2 bg-blue-200">
-                            <Link :href="route('chat.show', chat.id)" >
-                                Чат с {{ chat.telegram_user?.username || chat.telegram_user?.first_name }}
+            <aside class="col-span-3 bg-white shadow-xl">
+                <div v-for="bot in bots" :key="bot.id" class="">
+                    <h2 class="border border-y border-gray-100 shadow-sm py-1.5 pl-6" >Бот "{{ bot.username }}"</h2>
+                    <div class="my-2">
+                        <div v-for="chat in bot.telegram_chats">
+
+                            <Link v-if="user.id === chat.user_id" :href="route('chat.show', chat.id)"
+                                  class="flex flex-col gap-1 py-2 px-6 bg-white hover:bg-gray-100 transition duration-50">
+
+                                <div class="flex justify-between items-center">
+                                    <span class="font-bold text-md"> {{ chat.telegram_user?.username || chat.telegram_user?.first_name }} </span>
+                                    <span class="text-sm text-slate-400">14:50</span>
+                                </div>
+
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-slate-400" >Я понял!</span>
+                                    <span v-if="chat.has_new" class="w-2 h-2 bg-red-400 rounded-full"></span>
+                                    <span v-if="chat.status === 'open'" class="w-2 h-2 bg-red-400 rounded-full"></span>
+                                </div>
+
                             </Link>
-                            <span v-if="chat.status === 'open'" class="text-green-400">Новое!</span>
-                            <span
-                                v-if="chat.has_new"
-                                class="w-3 h-3 bg-red-500 rounded-full inline-block ml-2"
-                            ></span>
-                        </div>
-                        <div v-else class="p-3 rounded-xl my-2 bg-slate-100 flex justify-between">
-                            <Link :href="route('chat.show', chat.id)" >
-                                Чат с {{ chat.telegram_user?.username || chat.telegram_user?.first_name }}
-                            </Link>
+                            <!--                        <div v-else class="p-3 rounded-xl my-2 bg-slate-100 flex justify-between">-->
+                            <!--                            <Link :href="route('chat.show', chat.id)" >-->
+                            <!--                                Чат с {{ chat.telegram_user?.username || chat.telegram_user?.first_name }}-->
+                            <!--                            </Link>-->
+                            <!--                        </div>-->
                         </div>
                     </div>
                 </div>
             </aside>
 
             <!-- окно чата -->
-            <section class="col-span-9 flex flex-col bg-white rounded-2xl shadow-sm">
+            <section ref="scrollEl" class="col-span-9 flex flex-col">
                 <!-- лента сообщений -->
-                <div ref="scrollEl" class="flex-1 overflow-y-auto p-4 bg-slate-50 rounded-2xl space-y-2">
+                <div  class="flex-1 overflow-y-auto space-y-2">
                 </div>
 
             </section>
