@@ -3,6 +3,7 @@ import {ref, onMounted, onUnmounted} from 'vue'
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import {usePage} from "@inertiajs/vue3";
 import {Link} from "@inertiajs/vue3";
+import telegramIcon from "@/Images/telegram.png";
 
 
 const {props} = usePage()
@@ -42,6 +43,17 @@ onMounted(() => {
 
 onUnmounted(() => window.Echo.leave(`store-telegram-chat`))
 
+const getInitials = (chat) => {
+    const name = chat.telegram_user?.username || chat.telegram_user?.first_name || ''
+    const trimmed = name.trim()
+
+    if (!trimmed) return '?'
+
+    const letters = trimmed.replace(/[^A-Za-zА-Яа-яЁё0-9]/g, '')
+
+    return letters.slice(0, 1).toUpperCase()
+}
+
 </script>
 
 
@@ -51,24 +63,29 @@ onUnmounted(() => window.Echo.leave(`store-telegram-chat`))
             <!-- слева список чатов (пока заглушка) -->
             <aside class="col-span-3 bg-white shadow-xl">
                 <div v-for="bot in bots" :key="bot.id" class="">
-                    <h2 class="border border-y border-gray-100 shadow-sm py-1.5 pl-6" >Бот "{{ bot.username }}"</h2>
-                    <div class="my-2">
+                    <h2 class="border-y border-gray-100 shadow-md py-1.5 pl-6" >Бот "{{ bot.username }}"</h2>
+                    <div class="my-3">
                         <div v-for="chat in bot.telegram_chats">
 
                             <Link v-if="user.id === chat.user_id" :href="route('chat.show', chat.id)"
-                                  class="flex flex-col gap-1 py-2 px-6 bg-white hover:bg-gray-100 transition duration-50">
+                                  class="flex items-center gap-4 py-2 px-6 bg-white hover:bg-gray-100 transition duration-50">
 
-                                <div class="flex justify-between items-center">
-                                    <span class="font-bold text-md"> {{ chat.telegram_user?.username || chat.telegram_user?.first_name }} </span>
-                                    <span class="text-sm text-slate-400">14:50</span>
+                                <div class="flex items-center justify-center h-10 w-10 rounded-full bg-red-600 text-gray-100 font-semibold text-2xl">
+                                    {{ getInitials(chat) }}
                                 </div>
 
-                                <div class="flex justify-between items-center">
-                                    <span class="text-sm text-slate-400" >Я понял!</span>
-                                    <span v-if="chat.has_new" class="w-2 h-2 bg-red-400 rounded-full"></span>
-                                    <span v-if="chat.status === 'open'" class="w-2 h-2 bg-red-400 rounded-full"></span>
-                                </div>
+                                <div class="flex flex-1 flex-col gap-1">
+                                    <div class="flex justify-between items-center">
+                                        <span class="font-bold text-md"> {{ chat.telegram_user?.username || chat.telegram_user?.first_name }} </span>
+                                        <span class="text-sm text-slate-400">14:50</span>
+                                    </div>
 
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-slate-400" >Я понял!</span>
+                                        <span v-if="chat.has_new" class="w-2 h-2 bg-red-400 rounded-full"></span>
+                                        <span v-if="chat.status === 'open'" class="w-2 h-2 bg-red-400 rounded-full"></span>
+                                    </div>
+                                </div>
                             </Link>
                             <!--                        <div v-else class="p-3 rounded-xl my-2 bg-slate-100 flex justify-between">-->
                             <!--                            <Link :href="route('chat.show', chat.id)" >-->

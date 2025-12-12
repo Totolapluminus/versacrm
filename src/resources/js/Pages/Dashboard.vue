@@ -40,7 +40,7 @@ watch(selectedOperatorId, (newVal) => {
     <Head title="Dashboard"/>
     <AuthenticatedLayout>
         <template #header>
-            <h2 class="text-xl font-semibold text-gray-800">Статистика</h2>
+            <h2 class="text-xl font-bold">Статистика</h2>
         </template>
 
         <!-- Оператор -->

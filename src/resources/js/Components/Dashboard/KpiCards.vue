@@ -1,6 +1,18 @@
 <script setup>
 import { computed } from 'vue'
 import KpiCard from "@/Components/Dashboard/KpiCard.vue";
+
+import {
+    ChatBubbleLeftEllipsisIcon,
+    Cog6ToothIcon,
+    CheckCircleIcon,
+    ServerStackIcon,
+    EnvelopeIcon,
+    ClockIcon,
+    WrenchScrewdriverIcon,
+    FaceSmileIcon,
+} from '@heroicons/vue/24/solid'
+
 const props = defineProps({
     kpis: {
         type: Object,
@@ -9,14 +21,14 @@ const props = defineProps({
 })
 
 const cards = computed(() => [
-    { key: 'newTickets',      title: 'Новые обращения',                        value: props.kpis.newTickets },
-    { key: 'activeTickets',   title: 'Обрабатываемые обращения',               value: props.kpis.activeTickets },
-    { key: 'closedTickets',   title: 'Закрытые обращения',                     value: props.kpis.closedTickets },
-    { key: 'totalBots',       title: 'Доступно ботов',                         value: props.kpis.totalBots },
-    { key: 'totalMessages',   title: 'Все сообщения',                          value: props.kpis.totalMessages },
-    { key: 'avgResponseTime', title: 'Среднее время первого ответа (с.)',      value: props.kpis.avgResponseTime },
-    { key: 'mostLoadedBot',   title: 'Самый загруженный бот',                  value: props.kpis.mostLoadedBot },
-    { key: 'avgCloseTime',    title: 'Среднее время решения заявки (с.)',      value: props.kpis.avgCloseTime },
+    { key: 'newTickets',      title: 'Новые обращения',                   value: props.kpis.newTickets,      icon: ChatBubbleLeftEllipsisIcon },
+    { key: 'activeTickets',   title: 'Обращения в работе',                value: props.kpis.activeTickets,   icon: Cog6ToothIcon },
+    { key: 'closedTickets',   title: 'Закрытые обращения',                value: props.kpis.closedTickets,   icon: CheckCircleIcon },
+    { key: 'totalBots',       title: 'Доступно ботов',                    value: props.kpis.totalBots,       icon: ServerStackIcon },
+    { key: 'totalMessages',   title: 'Все сообщения',                     value: props.kpis.totalMessages,   icon: EnvelopeIcon },
+    { key: 'avgResponseTime', title: 'Время первого ответа',              value: props.kpis.avgResponseTime, icon: ClockIcon },
+    { key: 'mostLoadedBot',   title: 'Самый загруженный бот',             value: props.kpis.mostLoadedBot,   icon: WrenchScrewdriverIcon },
+    { key: 'avgCloseTime',    title: 'Время решения заявки',              value: props.kpis.avgCloseTime,    icon: FaceSmileIcon },
 ])
 
 </script>
@@ -28,6 +40,7 @@ const cards = computed(() => [
             :key="card.key"
             :title="card.title"
             :value="card.value"
+            :icon="card.icon"
         />
     </div>
 </template>

@@ -6,6 +6,8 @@ import axios from "axios";
 import {Link} from "@inertiajs/vue3";
 import {useNotificationStore} from '@/Stores/notificationStore'
 
+import telegramIcon from '@/Images/telegram.png'
+console.log(telegramIcon)
 const notificationStore = useNotificationStore()
 
 const {props} = usePage()
@@ -132,6 +134,16 @@ async function updateStatus() {
     }
 }
 
+const getInitials = (chat) => {
+    const name = chat.telegram_user?.username || chat.telegram_user?.first_name || ''
+    const trimmed = name.trim()
+
+    if (!trimmed) return '?'
+
+    const letters = trimmed.replace(/[^A-Za-zА-Яа-яЁё0-9]/g, '')
+
+    return letters.slice(0, 1).toUpperCase()
+}
 
 </script>
 
@@ -142,23 +154,29 @@ async function updateStatus() {
             <!-- слева список чатов (пока заглушка) -->
             <aside class="col-span-3 bg-white shadow-xl">
                 <div v-for="bot in bots" :key="bot.id">
-                    <h2 class="border-y border-gray-100 shadow-sm py-1.5 pl-6" >Бот "{{ bot.username }}"</h2>
-                    <div class="my-2">
+                    <h2 class="border-y border-gray-100 shadow-md py-1.5 pl-6" >Бот "{{ bot.username }}"</h2>
+                    <div class="my-3">
                         <div v-for="chat in bot.telegram_chats">
                             <Link v-if="user.id === chat.user_id" :href="route('chat.show', chat.id)" :class="[
-                            'flex flex-col gap-1 px-6 py-2',
+                            'flex items-center gap-4 px-6 py-2',
                             chat.id === props.current_chat?.id ? 'bg-gray-100' : 'bg-white hover:bg-gray-100 transition duration-50'
                             ]">
 
-                                <div class="flex justify-between items-center">
-                                    <span :class="['text-md font-bold', chat.id === props.current_chat?.id ? 'text-gray-800' : 'text-gray-800']"> {{ chat.telegram_user?.username || chat.telegram_user?.first_name }} </span>
-                                    <span :class="['text-sm', chat.id === props.current_chat?.id ? 'text-gray-400' : 'text-gray-400']">14:50</span>
+                                <div class="flex items-center justify-center h-10 w-10 rounded-full bg-red-600 text-gray-100 font-semibold text-2xl">
+                                    {{ getInitials(chat) }}
                                 </div>
 
-                                <div class="flex justify-between items-center">
-                                    <span :class="['text-sm', chat.id === props.current_chat?.id ? 'text-gray-400' : 'text-gray-400']" >Я понял!</span>
-                                    <span v-if="chat.has_new" class="w-2 h-2 bg-red-400 rounded-full"></span>
-                                    <span v-if="chat.status === 'open'" class="w-2 h-2 bg-red-400 rounded-full"></span>
+                                <div class="flex flex-1 flex-col gap-1">
+                                    <div class="flex justify-between items-center">
+                                        <span :class="['text-md font-bold', chat.id === props.current_chat?.id ? 'text-gray-800' : 'text-gray-800']"> {{ chat.telegram_user?.username || chat.telegram_user?.first_name }} </span>
+                                        <span :class="['text-sm', chat.id === props.current_chat?.id ? 'text-gray-400' : 'text-gray-400']">14:50</span>
+                                    </div>
+
+                                    <div class="flex justify-between items-center">
+                                        <span :class="['text-sm', chat.id === props.current_chat?.id ? 'text-gray-400' : 'text-gray-400']" >Я понял!</span>
+                                        <span v-if="chat.has_new" class="w-2 h-2 bg-red-500 rounded-full"></span>
+                                        <span v-if="chat.status === 'open'" class="w-2 h-2 bg-orange-500 rounded-full"></span>
+                                    </div>
                                 </div>
                             </Link>
 <!--                            <div v-else :class="[-->
@@ -196,7 +214,7 @@ async function updateStatus() {
                         <div
                             class="max-w-[70%] min-w-[calc(4rem)] px-3 py-2 rounded-3xl shadow-md whitespace-pre-wrap break-words"
                             :class="m.direction === 'out'
-                    ? 'bg-black/85 border border-black text-white rounded-br-md'
+                    ? 'bg-red-600 border border-red-600 text-white rounded-br-md'
                     : 'bg-white border border-gray-100 text-gray-900 rounded-bl-md'"
                         >
                             <p>{{ m.text }}</p>
@@ -218,7 +236,7 @@ async function updateStatus() {
                     />
                     <button
                         type="submit"
-                        class="px-4 py-2 rounded-xl bg-black/80 text-white hover:bg-black/70 transition duration-50"
+                        class="px-4 py-2 rounded-xl bg-red-600 text-white hover:bg-red-800 transition duration-50"
                     >
                         Отправить
                     </button>

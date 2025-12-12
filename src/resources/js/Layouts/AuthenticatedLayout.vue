@@ -9,6 +9,9 @@ import {Link, usePage} from '@inertiajs/vue3';
 import axios from 'axios'
 import {useNotificationStore} from "@/Stores/notificationStore.js";
 
+import {ChartBarSquareIcon} from "@heroicons/vue/24/outline/index.js";
+import {ChatBubbleLeftRightIcon} from "@heroicons/vue/24/outline/index.js";
+
 function logoutTokenClean() {
     localStorage.removeItem('token')
     delete axios.defaults.headers.common.Authorization
@@ -52,9 +55,7 @@ onUnmounted(() => {
                             <!-- Logo -->
                             <div class="flex shrink-0 items-center">
                                 <Link :href="route('dashboard')">
-                                    <ApplicationLogo
-                                        class="block h-9 w-auto fill-current text-gray-800"
-                                    />
+                                    <img class="block h-9 w-auto fill-current text-gray-800" src="/storage/logo.png" alt="Logo">
                                 </Link>
                             </div>
 
@@ -66,7 +67,8 @@ onUnmounted(() => {
                                     :href="route('dashboard')"
                                     :active="route().current('dashboard')"
                                 >
-                                    Главная
+                                    <ChartBarSquareIcon stroke="currentColor" class="w-5 h-5 mr-1"></ChartBarSquareIcon>
+                                    Статистика
                                 </NavLink>
 
                                 <div class="relative space-x-8 sm:ms-10 sm:flex">
@@ -74,6 +76,7 @@ onUnmounted(() => {
                                         :href="route('chat.index')"
                                         :active="route().current('chat.index') || route().current('chat.show')"
                                     >
+                                        <ChatBubbleLeftRightIcon stroke="currentColor" class="w-5 h-5 mr-1"></ChatBubbleLeftRightIcon>
                                         Чаты
                                     </NavLink>
 

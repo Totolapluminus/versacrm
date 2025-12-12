@@ -37,7 +37,7 @@ const weeklyBarData = computed(() => ({
             label: 'Обращения за неделю',
             data: props.weeklyChart.series ?? [],
             borderWidth: 1,
-            backgroundColor: 'oklch(70.4% 0.191 22.216)',
+            backgroundColor: 'rgba(255, 55, 50, 0.6)',
         }
     ]
 }))
@@ -57,9 +57,9 @@ const weeklyBarOpts = {
             },
             font: {
                 size: 20,         // размер заголовка
-                weight: 'bold'
+                weight: 600
             },
-            color: 'rgb(50, 50, 50)',
+            color: 'rgb(0,0,0)',
         }
     },
     scales: {

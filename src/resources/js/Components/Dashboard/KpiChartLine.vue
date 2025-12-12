@@ -39,7 +39,7 @@ const lineData = computed(() => ({
         tension: 0.2,
         fill: false,
         pointRadius: 2,
-        borderColor: 'oklch(70.4% 0.191 22.216)',
+        borderColor: 'rgba(255, 65, 60, 0.5)',
     })) ?? []
 }))
 
@@ -58,9 +58,10 @@ const lineOpts = {
             },
             font: {
                 size: 20,         // размер заголовка
-                weight: 'bold'
+                weight: 600,
+
             },
-            color: 'rgb(50, 50, 50)',
+            color: 'rgb(0,0,0)',
         }
     }
 }
