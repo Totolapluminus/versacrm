@@ -16,6 +16,7 @@ use App\Models\TelegramUser;
 use App\Models\User;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
+use Illuminate\Log\Logger;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -66,7 +67,22 @@ class TelegramMessageController extends Controller
 
         $chat->update(['has_new' => true]);
 
-        Log::info($chat);
+        $chat = TelegramChat::query()
+            ->select('id','telegram_bot_id','telegram_user_id', 'user_id', 'status', 'has_new')
+            ->addSelect([
+                'last_message_in_text' => TelegramMessage::select('text')
+                    ->whereColumn('telegram_messages.telegram_chat_id', 'telegram_chats.id')
+                    ->orderByDesc('id')
+                    ->limit(1),
+                'last_message_in_at' => TelegramMessage::select('created_at')
+                    ->whereColumn('telegram_messages.telegram_chat_id', 'telegram_chats.id')
+                    ->orderByDesc('id')
+                    ->limit(1),
+            ])
+            ->with(['telegramUser:id,username,first_name'])
+            ->findOrFail($chat->id);
+
+//        Log::info("LOGGED CHAT",$chat->toArray());
 
         event(new StoreTelegramChatEvent($chat));
         event(new StoreTelegramMessageEvent($telegramMessage, $chat));

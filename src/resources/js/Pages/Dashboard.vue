@@ -30,7 +30,7 @@ onMounted(() => {
     }
 })
 
-// При изменении оператора обновляем данные через Inertia
+// Inertia refresh
 watch(selectedOperatorId, (newVal) => {
     router.get(route('dashboard'), { operator_id: newVal }, { preserveState: false })
 })
@@ -43,10 +43,10 @@ watch(selectedOperatorId, (newVal) => {
             <h2 class="text-xl font-bold">Статистика</h2>
         </template>
 
-        <!-- Оператор -->
+        <!-- Operator -->
         <div v-if="user.role === 'operator'" class="space-y-6 py-8 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
-            <KpiChartBar title="Всего обращений за неделю" :weeklyChart="weeklyChart" />
+            <KpiChartLine title="Новых обращений за неделю" :chart="weeklyChart" />
 
             <KpiCards :kpis="kpis" />
 
@@ -54,7 +54,7 @@ watch(selectedOperatorId, (newVal) => {
 
         </div>
 
-        <!-- АДМИН -->
+        <!-- Admin -->
         <div v-else-if="user.role === 'admin'" class="space-y-6 py-8 px-40">
 
             <div class="flex items-center justify-between">
@@ -71,7 +71,7 @@ watch(selectedOperatorId, (newVal) => {
                 </select>
             </div>
 
-            <KpiChartBar title="Всего обращений за неделю" :weeklyChart="weeklyChart" />
+            <KpiChartLine title="Новых обращений за неделю" :chart="weeklyChart" />
 
             <KpiCards :kpis="kpis" />
 

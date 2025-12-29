@@ -37,7 +37,7 @@ const weeklyBarData = computed(() => ({
             label: 'Обращения за неделю',
             data: props.weeklyChart.series ?? [],
             borderWidth: 1,
-            backgroundColor: 'rgba(255, 55, 50, 0.6)',
+            backgroundColor: 'rgba(200, 0, 0, 0.8)',
         }
     ]
 }))
@@ -74,7 +74,7 @@ const weeklyBarOpts = {
 </script>
 
 <template>
-    <div class="rounded-2xl bg-white p-4 shadow-md h-80">
+    <div class="rounded-lg bg-white p-4 shadow-md h-80">
         <Bar :data="weeklyBarData" :options="weeklyBarOpts" />
     </div>
 </template>

@@ -14,5 +14,10 @@ export const useNotificationStore = defineStore('notifications', () => {
 
     const count = () => Object.keys(newChats.value).length
 
-    return { newChats, addChat, clearChat, count }
+    function setChats(ids) {
+        newChats.value = {}
+        ids.forEach(id => { newChats.value[id] = true })
+    }
+
+    return { newChats, addChat, clearChat, count, setChats }
 })

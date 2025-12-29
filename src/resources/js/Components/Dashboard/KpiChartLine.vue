@@ -39,7 +39,7 @@ const lineData = computed(() => ({
         tension: 0.2,
         fill: false,
         pointRadius: 2,
-        borderColor: 'rgba(255, 65, 60, 0.5)',
+        borderColor: 'rgba(200, 0, 0, 0.5)',
     })) ?? []
 }))
 
@@ -68,7 +68,7 @@ const lineOpts = {
 </script>
 
 <template>
-    <div class="rounded-2xl bg-white p-4 shadow-md h-80">
+    <div class="rounded-lg bg-white p-4 shadow-md h-80">
         <Line :data="lineData" :options="lineOpts" />
     </div>
 </template>

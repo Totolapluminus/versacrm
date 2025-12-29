@@ -17,6 +17,8 @@ function logoutTokenClean() {
     delete axios.defaults.headers.common.Authorization
 }
 
+const page = usePage()
+
 const showingNavigationDropdown = ref(false);
 
 const user = usePage().props.auth.user
@@ -25,11 +27,19 @@ const notificationStore = useNotificationStore()
 
 onMounted(() => {
     if (!user) return
+    notificationStore.setChats(page.props.unreadChatIds ?? [])
+})
+
+onMounted(() => {
+    if (!user) return
+
+    notificationStore.setChats(page.props.unreadChatIds ?? [])
 
     window.Echo.channel(`notification-on-message-to-user-${user.id}`)
-        .listen('.notification-on-message-to-user', (data) => {
-            console.log('NOTIFICATION:', data)
-            notificationStore.addChat(data.chat_id)
+        .listen('.notification-on-message-to-user', (res) => {
+            // Новое сообщение → добавляем в счётчик
+            notificationStore.addChat(res.chat_id)
+            console.log('NOTIFICATION:', res)
         })
 
     console.log('Subscribed to', `notification-on-message-to-user-${user.id}`)
@@ -93,6 +103,13 @@ onUnmounted(() => {
                                          :active="route().current('assign.index')"
                                 >
                                     Доступ к ботам*
+                                </NavLink>
+
+                                <NavLink v-if="$page.props.auth.user.role === 'admin'"
+                                         :href="route('register')"
+                                         :active="route().current('register')"
+                                >
+                                    Новый оператор*
                                 </NavLink>
 
                             </div>

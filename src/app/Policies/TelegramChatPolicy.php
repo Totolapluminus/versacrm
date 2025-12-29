@@ -21,7 +21,11 @@ class TelegramChatPolicy
      */
     public function view(User $user, TelegramChat $telegramChat): bool
     {
-        return $user->telegramBots()->whereKey($telegramChat->telegram_bot_id)->exists();
+        if ($user->role === 'admin') {
+            return true;
+        }
+
+        return (int) $telegramChat->user_id === (int) $user->id;
     }
 
     /**

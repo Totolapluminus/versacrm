@@ -90,8 +90,11 @@ class DashboardController extends Controller
 
 
             $rows = TelegramMessage::selectRaw('DATE(created_at) as day, COUNT(*) as cnt')
-                ->whereHas('telegramChat', fn($q) => $q->whereIn('telegram_bot_id', $botIds))
-                ->groupBy('day')->orderBy('day')->get();
+                ->whereIn('telegram_chat_id', $chatIds)   // <-- ключевая замена
+                ->groupBy('day')
+                ->orderBy('day')
+                ->get();
+
             $labels = $rows->pluck('day');
             $series = [[
                 'label' => 'Сообщения за день',
@@ -199,7 +202,10 @@ class DashboardController extends Controller
             ],
             'weeklyChart' => [
                 'labels' => $weeklyLabels,
-                'series' => $weeklySeries,
+                'series' => [[
+                    'label' => 'Обращения за неделю',
+                    'data' => $weeklySeries,
+                ]],
             ],
         ]);
     }

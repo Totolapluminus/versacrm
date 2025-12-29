@@ -73,7 +73,7 @@ const submit = () => {
                             :checked="selectedBotIds.has(b.id)"
                             @change="toggle(b.id)"
                         />
-                        <span>Bot #{{ b.id }}</span>
+                        <span>{{ b.username }}</span>
                     </div>
                 </div>
             </div>

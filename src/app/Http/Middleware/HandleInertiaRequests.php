@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\TelegramChat;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -38,6 +39,15 @@ class HandleInertiaRequests extends Middleware
                 'success'   => fn () => $request->session()->pull('success'),
                 'error'     => fn () => $request->session()->pull('error'),
             ],
+            'unreadChatIds' => fn () => $request->user()
+                ? TelegramChat::query()
+                    ->where('has_new', true)
+                    ->when(
+                        $request->user()->role !== 'admin',
+                        fn ($q) => $q->where('user_id', $request->user()->id)
+                    )
+                    ->pluck('id')
+                : [],
         ]);
     }
 }

@@ -14,11 +14,11 @@ const props = defineProps({
 </script>
 
 <template>
-    <div class="rounded-2xl bg-white py-6 px-4 shadow-md flex items-center justify-between">
+    <div class="rounded-lg bg-white py-6 px-4 shadow-md flex items-center justify-between">
         <component
             v-if="icon"
             :is="icon"
-            class="w-14 h-14 text-red-400"
+            class="w-14 h-14 text-red-600"
         />
 
         <div class="flex flex-col text-right">

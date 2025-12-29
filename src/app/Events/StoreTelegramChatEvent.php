@@ -10,19 +10,35 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class StoreTelegramChatEvent implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    private $telegramChat;
+    public array $chatPayload;
 
     /**
      * Create a new event instance.
      */
     public function __construct(TelegramChat $telegramChat)
     {
-        $this->telegramChat = $telegramChat;
+        $this->chatPayload = [
+            'id' => $telegramChat->id,
+            'telegram_user' => [
+                'id' => $telegramChat->telegramUser?->id,
+                'username' => $telegramChat->telegramUser?->username,
+                'first_name' => $telegramChat->telegramUser?->first_name,
+            ],
+            'telegram_bot_id' => $telegramChat->telegram_bot_id,
+            'user_id' => $telegramChat->user_id,
+            'has_new' => $telegramChat->has_new,
+            'last_message_in_text' => $telegramChat->last_message_in_text,
+            'last_message_in_at' => $telegramChat->last_message_in_at,
+            'last_message_in_human' => $telegramChat->last_message_in_human,
+        ];
+
+        Log::info('LOGGED CHAT', $telegramChat->toArray());
     }
 
     /**
@@ -43,17 +59,7 @@ class StoreTelegramChatEvent implements ShouldBroadcast
     public function broadcastWith(): array
     {
         return [
-            'telegramChat' => [
-                'id' => $this->telegramChat->id,
-                'telegram_user' => [
-                    'id' => $this->telegramChat->telegramUser?->id,
-                    'username' => $this->telegramChat->telegramUser?->username,
-                    'first_name' => $this->telegramChat->telegramUser?->first_name,
-                ],
-                'telegram_bot_id' => $this->telegramChat->telegram_bot_id,
-                'user_id' => $this->telegramChat->user_id,
-                'has_new' => $this->telegramChat->has_new
-            ]
+            'telegramChat' => $this->chatPayload,
         ];
     }
 }

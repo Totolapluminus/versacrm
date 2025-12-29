@@ -14,7 +14,7 @@ class AssignController extends Controller
 
         $users = User::with('telegramBots')->where('role', 'operator')->get();
 
-        $bots = TelegramBot::select('id')->get();
+        $bots = TelegramBot::select('id', 'username')->get();
         return Inertia::render('Assign/Index', [
             'users' => $users,
             'bots' => $bots,
