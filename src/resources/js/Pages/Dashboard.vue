@@ -30,7 +30,7 @@ onMounted(() => {
     }
 })
 
-// Inertia refresh
+// refresh
 watch(selectedOperatorId, (newVal) => {
     router.get(route('dashboard'), { operator_id: newVal }, { preserveState: false })
 })
@@ -39,9 +39,9 @@ watch(selectedOperatorId, (newVal) => {
 <template>
     <Head title="Dashboard"/>
     <AuthenticatedLayout>
-        <template #header>
-            <h2 class="text-xl font-bold">Статистика</h2>
-        </template>
+<!--        <template #header>-->
+<!--            <h2 class="text-xl font-bold">Статистика</h2>-->
+<!--        </template>-->
 
         <!-- Operator -->
         <div v-if="user.role === 'operator'" class="space-y-6 py-8 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

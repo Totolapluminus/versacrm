@@ -19,6 +19,8 @@ services:
       dockerfile: php.Dockerfile
     volumes:
       - ./src:/var/www/versacrm
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     container_name: versacrm_php
   python:
     build:
@@ -34,7 +36,7 @@ services:
       - postgres
     restart: unless-stopped
     volumes:
-      - ./bot:/app        # для разработки удобно
+      - ./bot:/app
     # command: sh -c "watchfiles 'python /app/main.py' /app"
   postgres:
     image: postgres:16.8-alpine

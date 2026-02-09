@@ -5,6 +5,8 @@ namespace App\Policies;
 use App\Models\TelegramChat;
 use App\Models\User;
 use Illuminate\Auth\Access\Response;
+use Illuminate\Log\Logger;
+use Illuminate\Support\Facades\Log;
 
 class TelegramChatPolicy
 {
@@ -21,9 +23,19 @@ class TelegramChatPolicy
      */
     public function view(User $user, TelegramChat $telegramChat): bool
     {
+        Log::debug('TelegramChatPolicy@view start', [
+            'user_id' => $user->id,
+            'user_role' => $user->role,
+            'chat_id' => $telegramChat->id,
+            'chat_user_id' => $telegramChat->user_id,
+        ]);
+
         if ($user->role === 'admin') {
+            Log::debug('TelegramChatPolicy@view allow: admin');
             return true;
         }
+
+        Log::debug('TelegramChatPolicy@view result');
 
         return (int) $telegramChat->user_id === (int) $user->id;
     }

@@ -50,11 +50,13 @@ class TelegramMessageController extends Controller
                 'telegram_bot_id' => $data['bot_db_id'],
                 'telegram_user_id' => $telegramUser->id,
                 'chat_id' => $data['chat_id'],
+                'ticket_id' => $data['ticket_id'],
             ],
             [
                 'type' => $data['chat_type'],
                 'status' => 'open',
                 'user_id' => $user?->id,
+                'ticket_type' => $data['ticket_type'],
             ]
         );
 
@@ -65,10 +67,42 @@ class TelegramMessageController extends Controller
             'direction' => $data['direction'],
         ]);
 
+
+        if ($chat->wasRecentlyCreated) {
+            $firstName = $telegramUser->first_name ?? '';
+            $lastName  = $telegramUser->last_name ?? '';
+            $username  = $telegramUser->username ?? '';
+
+            $token = $chat->telegramBot->token;
+            $text = (
+                "🆘 <b>Новое обращение в техподдержку</b>\n"
+                . "<b>Номер:</b> <b>{$data['ticket_id']}</b>\n"
+                . "<b>Категория:</b> {$data['ticket_type']}\n"
+                . "<b>От:</b> {$firstName} {$lastName} <code>@{$username}</code>\n"
+                . "<b>User ID:</b> <code>{$telegramUser->telegram_id}</code>\n"
+                . "<b>Bot:</b> <code>" . ($chat->telegramBot->username) . "</code> (db_id=<code>{$chat->telegramBot->id}</code>)\n\n"
+                . "<b>Описание:</b>\n{$telegramMessage->text}\n"
+            );
+
+            $res = Http::post("https://api.telegram.org/bot{$token}/sendMessage", [
+                'chat_id' => '-1003777308302',
+                'text' => $text,
+                'parse_mode' => 'HTML',
+            ]);
+
+            if (!$res->successful()) {
+                logger()->error('Telegram sendMessage failed', [
+                    'status' => $res->status(),
+                    'body' => $res->body(),
+                ]);
+            }
+        }
+
+
         $chat->update(['has_new' => true]);
 
         $chat = TelegramChat::query()
-            ->select('id','telegram_bot_id','telegram_user_id', 'user_id', 'status', 'has_new')
+            ->select('id','telegram_bot_id','telegram_user_id', 'user_id', 'status', 'has_new', 'chat_id', 'ticket_id', 'ticket_type')
             ->addSelect([
                 'last_message_in_text' => TelegramMessage::select('text')
                     ->whereColumn('telegram_messages.telegram_chat_id', 'telegram_chats.id')

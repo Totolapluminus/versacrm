@@ -30,7 +30,7 @@ onMounted(() => {
         .listen('.store-telegram-chat', res => {
             const chat = res.telegramChat
             console.log(chat)
-            const bot = bots.value.find(b => b.id === chat.telegram_bot_id)
+            const bot = botsRef.value.find(b => b.id === chat.telegram_bot_id)
             if (!bot) return
 
             const found = bot.telegram_chats.find(c => c.id === chat.id)
@@ -58,6 +58,20 @@ const getInitials = (chat) => {
     return letters.slice(0, 1).toUpperCase()
 }
 
+const TICKET_TYPE_LABELS = {
+    login: 'Проблемы со входом',
+    access: 'Проблемы с разделами',
+    profile_update: 'Проблемы с профилем',
+    notifications: 'Проблемы с уведомлениями',
+    bug: 'Баг в кабинете',
+    other: 'Другие проблемы',
+}
+
+const ticketTypeLabel = (key) => {
+    if (!key) return '—'
+    return TICKET_TYPE_LABELS[key] || key // если ключ неизвестен — покажем его
+}
+
 </script>
 
 
@@ -72,21 +86,22 @@ const getInitials = (chat) => {
                         <div v-for="chat in bot.telegram_chats">
 
                             <Link v-if="user.id === chat.user_id || user.role === 'admin' " :href="route('chat.show', chat.id)"
-                                  class="flex items-center gap-4 py-2 px-6 bg-white hover:bg-gray-50 transition duration-50">
+                                  class="flex items-center gap-3 py-2 px-4 bg-white hover:bg-gray-50 transition duration-50">
 
                                 <div class="flex items-center justify-center h-10 w-10 rounded-full bg-red-700 text-gray-100 font-semibold text-2xl">
                                     {{ getInitials(chat) }}
                                 </div>
 
-                                <div class="flex flex-1 flex-col gap-1">
+                                <div class="flex flex-1 flex-col gap-2 truncate">
                                     <div class="flex justify-between items-center">
-                                        <span class="font-bold text-md"> {{ chat.telegram_user?.username || chat.telegram_user?.first_name }} </span>
-                                        <span class="text-sm text-slate-400">{{ chat.last_message_in_human }}</span>
+                                        <span class="text-[13px] font-bold text-gray-800">{{ chat.telegram_user?.username || chat.telegram_user?.first_name }}, {{chat.ticket_id}}</span>
+                                        <span class="text-[11px] text-gray-400">{{ chat.last_message_in_human }}</span>
                                     </div>
 
                                     <div class="flex justify-between items-center">
-                                        <span class="text-sm text-slate-400" >{{ chat.last_message_in_text }}</span>
-                                        <div class="flex gap-2">
+                                        <span class="text-[13px] text-gray-400 truncate" >{{ chat.last_message_in_text }}</span>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[10px] text-gray-400" >{{ ticketTypeLabel(chat.ticket_type) }}</span>
                                             <div v-if="chat.status === 'open'" class="w-2 h-2 bg-blue-700 rounded-full"></div>
                                             <div v-if="chat.has_new" class="w-2 h-2 bg-red-700 rounded-full"></div>
                                         </div>

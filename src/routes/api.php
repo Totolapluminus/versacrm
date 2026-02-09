@@ -14,6 +14,10 @@ Route::post('/chat/{chat}', [TelegramMessageController::class, 'storeOut'])->nam
 
 Route::put('/chat/{chat}/status', [ChatController::class, 'updateStatus'])->name('chat.updateStatus')->middleware('auth:sanctum');
 Route::put('/chat/{chat}/operator', [ChatController::class, 'updateOperator'])->name('chat.updateOperator')->middleware('auth:sanctum');
+Route::delete('/chat/{chat}', [ChatController::class, 'destroy'])->name('chat.destroy')->middleware('auth:sanctum');
+
+Route::get('/telegram/chat-status', [ChatController::class, 'getStatus']);
+Route::post('/telegram/close-chat', [ChatController::class, 'closeChat']);
 
 
 //Route::get('/user', function (Request $request) {

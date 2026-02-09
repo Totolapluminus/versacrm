@@ -1,7 +1,7 @@
 <script setup>
 import {ref, nextTick, watch, onMounted, onUnmounted, computed, toRaw} from 'vue'
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
-import {usePage} from "@inertiajs/vue3";
+import {router, usePage} from "@inertiajs/vue3";
 import axios from "axios";
 import {Link} from "@inertiajs/vue3";
 import {useNotificationStore} from '@/Stores/notificationStore'
@@ -12,7 +12,7 @@ const {props} = usePage()
 const user = props.user ?? 'none'
 const operators = props.operators ?? []
 const bots = ref(props.bots ?? [])
-const currentChat = props.current_chat ?? []
+const currentChat = ref(props.current_chat ?? [])
 const currentChatDbId = props.current_chat.id ?? []
 const currentChatTgId = props.current_chat.chat_id ?? []
 const messages = ref(props.current_chat.telegram_messages ?? [])
@@ -66,21 +66,49 @@ onMounted(() => {
     window.Echo.channel('store-telegram-chat')
         .listen('.store-telegram-chat', res => {
             const chat = res.telegramChat
-            const bot = bots.value.find(b => b.id === chat.telegram_bot_id)
+            const bot = botsRef.value.find(b => b.id === chat.telegram_bot_id)
             if (!bot) return
 
-            const found = bot.telegram_chats.find(c => c.id === chat.id)
-            if (found && chat.id === props.current_chat?.id) {
-                found.last_message_in_text = chat.last_message_in_text
-                found.last_message_in_human = chat.last_message_in_human
-                return
-            } else if (found && chat.id !== props.current_chat?.id) {
-                found.has_new = chat.has_new
-                found.last_message_in_text = chat.last_message_in_text
-                found.last_message_in_human = chat.last_message_in_human
+            bot.telegram_chats = bot.telegram_chats ?? []
+            bot.closed_chats = bot.closed_chats ?? []
+
+            const open = bot.telegram_chats
+            const closed = bot.closed_chats
+
+            const openIdx = open.findIndex(c => c.id === chat.id)
+            const closedIdx = closed.findIndex(c => c.id === chat.id)
+
+            let target = null
+
+            if (openIdx !== -1) {
+                target = open[openIdx]
+            }
+            if (!target && closedIdx !== -1) {
+                target = closed[closedIdx]
+            }
+
+            if (target && chat.status && target.status !== chat.status) {
+                moveChatStatus(chat.id, chat.status)
+
+                const newOpenIdx = open.findIndex(c => c.id === chat.id)
+                const newClosedIdx = closed.findIndex(c => c.id === chat.id)
+                target = newOpenIdx !== -1 ? open[newOpenIdx] : (newClosedIdx !== -1 ? closed[newClosedIdx] : target)
+            }
+
+            if (chat.id === currentChatDbId && chat.status) {
+                chatStatus.value = chat.status
+            }
+
+            if (target) {
+                Object.assign(target, chat)
                 return
             }
-            bot.telegram_chats.push(chat)
+
+            if (chat.status === 'closed') {
+                closed.unshift(chat)
+            } else {
+                open.unshift(chat)
+            }
         })
 })
 onUnmounted(() => window.Echo.leave(`store-telegram-message-to-chat-${currentChatDbId}`))
@@ -133,7 +161,7 @@ async function updateOperator() {
         await axios.put(`/api/chat/${currentChatDbId}/operator`, {
             user_id: chatOperator.value,
         })
-        console.log("Оператор обновлён:", chatOperator.value)
+        router.get(route('chat.index'))
     } catch (e) {
         console.error("Ошибка смены оператора", e)
     }
@@ -174,6 +202,17 @@ async function updateStatus() {
     }
 }
 
+async function deleteChat() {
+    if (!confirm('Удалить чат и все сообщения?')) return
+
+    try {
+        await axios.delete(`/api/chat/${currentChatDbId}`)
+        router.get(route('chat.index'))
+    } catch (e) {
+        console.error('Ошибка при удалении чата', e)
+    }
+}
+
 const getInitials = (chat) => {
     const name = chat.telegram_user?.username || chat.telegram_user?.first_name || ''
     const trimmed = name.trim()
@@ -183,6 +222,20 @@ const getInitials = (chat) => {
     const letters = trimmed.replace(/[^A-Za-zА-Яа-яЁё0-9]/g, '')
 
     return letters.slice(0, 1).toUpperCase()
+}
+
+const TICKET_TYPE_LABELS = {
+    login: 'Проблемы со входом',
+    access: 'Проблемы с разделами',
+    profile_update: 'Проблемы с профилем',
+    notifications: 'Проблемы с уведомлениями',
+    bug: 'Баг в кабинете',
+    other: 'Другие проблемы',
+}
+
+const ticketTypeLabel = (key) => {
+    if (!key) return '—'
+    return TICKET_TYPE_LABELS[key] || key // если ключ неизвестен — покажем его
 }
 
 </script>
@@ -198,7 +251,7 @@ const getInitials = (chat) => {
                     <div class="my-3">
                         <div v-for="chat in bot.telegram_chats">
                             <Link v-if="user.id === chat.user_id || user.role === 'admin'" :href="route('chat.show', chat.id)" :class="[
-                            'flex items-center gap-4 px-6 py-2',
+                            'flex items-center gap-3 px-4 py-2',
                             chat.id === props.current_chat?.id ? 'bg-gray-50' : 'bg-white hover:bg-gray-50 transition duration-50'
                             ]">
 
@@ -206,29 +259,22 @@ const getInitials = (chat) => {
                                     {{ getInitials(chat) }}
                                 </div>
 
-                                <div class="flex flex-1 flex-col gap-1">
+                                <div class="flex flex-1 flex-col gap-2 truncate">
                                     <div class="flex justify-between items-center">
-                                        <span :class="['text-md font-bold', chat.id === props.current_chat?.id ? 'text-gray-800' : 'text-gray-800']"> {{ chat.telegram_user?.username || chat.telegram_user?.first_name }} </span>
-                                        <span :class="['text-sm', chat.id === props.current_chat?.id ? 'text-gray-400' : 'text-gray-400']">{{ chat.last_message_in_human }}</span>
+                                        <span class="text-[13px] font-bold text-gray-800 truncate">{{ chat.telegram_user?.username || chat.telegram_user?.first_name }}, {{chat.ticket_id}}</span>
+                                        <span class="text-[11px] text-gray-400">{{ chat.last_message_in_human }}</span>
                                     </div>
 
                                     <div class="flex justify-between items-center">
-                                        <span :class="['text-sm', chat.id === props.current_chat?.id ? 'text-gray-400' : 'text-gray-400']" >{{ chat.last_message_in_text }}</span>
-                                        <div class="flex gap-2">
+                                        <span class="text-[13px] text-gray-400 truncate" >{{ chat.last_message_in_text }}</span>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[10px] text-gray-400" >{{ ticketTypeLabel(chat.ticket_type) }}</span>
                                             <div v-if="chat.status === 'open'" class="w-2 h-2 bg-blue-700 rounded-full"></div>
                                             <div v-if="chat.has_new" class="w-2 h-2 bg-red-700 rounded-full"></div>
                                         </div>
                                     </div>
                                 </div>
                             </Link>
-                            <!--                            <div v-else :class="[-->
-                            <!--                        'flex justify-between p-3 rounded-xl my-2',-->
-                            <!--                        chat.id === props.current_chat?.id ? 'bg-blue-400 text-white' : 'bg-gray-100'-->
-                            <!--                        ]">-->
-                            <!--                                <Link :href="route('chat.show', chat.id)">-->
-                            <!--                                    Чат с {{ chat.telegram_user?.username || chat.telegram_user?.first_name }}-->
-                            <!--                                </Link>-->
-                            <!--                            </div>-->
                         </div>
                     </div>
                 </div>
@@ -256,9 +302,8 @@ const getInitials = (chat) => {
             >
                 <div class="h-16 flex items-center bg-gray-50 border-b border-gray-100">
                     <div class="flex flex-col gap-0.5 px-6">
-                        <div class="text-md font-bold">{{ currentChat.telegram_user?.username || currentChat.telegram_user?.first_name }}</div>
-<!--                        В ЭТОМ МЕСТЕ МНЕ НУЖЕН ВЫВОД ВРЕМЕНИ ПОСЛЕДНЕГО СООБЩЕНИЯ -->
-                        <div class="text-[13px] text-gray-500">{{lastMessageTime}}</div>
+                        <div class="text-md font-bold">{{ currentChat.telegram_user?.username || currentChat.telegram_user?.first_name }}, {{ currentChat.ticket_id }}</div>
+                        <div class="text-[13px] text-gray-500">{{lastMessageTime}}, {{ ticketTypeLabel(currentChat.ticket_type) }}</div>
                     </div>
                 </div>
                 <!-- скроллируется только этот div -->
@@ -292,12 +337,14 @@ const getInitials = (chat) => {
                     <input
                         v-model="draft"
                         type="text"
-                        placeholder="Cообщение…"
+                        :disabled="chatStatus === 'closed'"
+                        :placeholder="chatStatus === 'closed' ? 'Заявка закрыта.' : 'Сообщение…'"
                         class="flex-1 px-4 py-2 rounded-xl border-none focus:outline-none focus:ring-0 focus:ring-blue-200"
                     />
                     <button
                         type="submit"
                         class="px-4 py-2 rounded-xl bg-red-700 text-white hover:bg-red-800 transition duration-50"
+                        :disabled="chatStatus === 'closed'"
                     >
                         <PaperAirplaneIcon class="text-white w-6 h-6"></PaperAirplaneIcon>
                     </button>
@@ -339,8 +386,16 @@ const getInitials = (chat) => {
                             </option>
                         </select>
                     </div>
-                </div>
+                    <button
+                        v-if="chatStatus === 'closed'"
+                        type="button"
+                        @click="deleteChat"
+                        class="w-full bg-red-700 text-white rounded-lg px-3 py-2 text-sm font-semibold hover:bg-red-800 focus:outline-none focus:ring focus:ring-red-200"
+                    >
+                        Удалить чат
+                    </button>
 
+                </div>
             </aside>
 
 

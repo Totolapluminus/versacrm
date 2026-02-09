@@ -23,10 +23,10 @@ Route::get('/chat/{chat}', [ChatController::class, 'show'])->name('chat.show')->
 Route::get('/assign', [AssignController::class, 'index'])->name('assign.index')->middleware(['auth', 'can:admin']);
 Route::post('/assign', [AssignController::class, 'store'])->name('assign.store')->middleware(['auth', 'can:admin']);
 
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
+//Route::middleware('auth')->group(function () {
+//    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+//    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+//    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+//});
 
 require __DIR__.'/auth.php';
