@@ -14,6 +14,7 @@ use App\Models\TelegramChat;
 use App\Models\TelegramMessage;
 use App\Models\TelegramUser;
 use App\Models\User;
+use App\Services\TelegramApiService;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Log\Logger;
@@ -23,7 +24,7 @@ use Illuminate\Support\Facades\Log;
 class TelegramMessageController extends Controller
 {
     use AuthorizesRequests;
-    public function storeIn(StoreInRequest $request){
+    public function storeIn(StoreInRequest $request, TelegramApiService $tgApi){
 
         $data = $request->validated();
 
@@ -83,19 +84,8 @@ class TelegramMessageController extends Controller
                 . "<b>Bot:</b> <code>" . ($chat->telegramBot->username) . "</code> (db_id=<code>{$chat->telegramBot->id}</code>)\n\n"
                 . "<b>Описание:</b>\n{$telegramMessage->text}\n"
             );
-
-            $res = Http::post("https://api.telegram.org/bot{$token}/sendMessage", [
-                'chat_id' => '-1003777308302',
-                'text' => $text,
-                'parse_mode' => 'HTML',
-            ]);
-
-            if (!$res->successful()) {
-                logger()->error('Telegram sendMessage failed', [
-                    'status' => $res->status(),
-                    'body' => $res->body(),
-                ]);
-            }
+            $tgChannelId = config('myapp.support_chat_id');
+            $tgApi->sendMessage($token, (int)$tgChannelId, $text);
         }
 
 

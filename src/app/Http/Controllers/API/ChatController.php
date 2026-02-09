@@ -36,6 +36,16 @@ class ChatController extends Controller
                 $bot = $chat->telegramBot;
                 $text = "Заявка закрыта. \nЕсли нужно — создайте новую, нажав кнопку или написав /start.";
                 $tgApi->sendMessage($bot?->token, (int)$chat->chat_id, $text);
+
+                $tgChannelId = config('myapp.support_chat_id');
+                $tgText = (
+                    "✅ <b>Заявка закрыта ОПЕРАТОРОМ: </b>\n"
+                    . "<b>Номер:</b> <b>{$chat->ticket_id}</b>\n"
+                    . "<b>Категория:</b> {$chat->ticket_type}\n"
+                    . "<b>Оператор:</b> {$chat->user->name}\n"
+                );
+                $tgApi->sendMessage($bot?->token, (int)$tgChannelId, $tgText);
+
             } catch (\Exception $e) {
                 Log::error('Сообщение о закрытии чата не было отправлено в бот', [
                     'chat_id' => $chat->id,
@@ -66,7 +76,7 @@ class ChatController extends Controller
         ]);
 
         $bot = $chat->telegramBot;
-        $tgChannelId = '-1003777308302';
+        $tgChannelId = config('myapp.support_chat_id');
         $text = (
             "⚠️ <b>Переназначение обращения: </b>\n"
             . "<b>От:</b> <b> {$oldOperatorName}</b>\n"
@@ -100,7 +110,7 @@ class ChatController extends Controller
         ]);
     }
 
-    public function closeChat(Request $request){
+    public function closeChat(Request $request, TelegramApiService $tgApi){
         $data = $request->validate([
             'telegram_bot_id' => 'required|exists:telegram_bots,id',
             'chat_id' => 'required|exists:telegram_chats,chat_id',
@@ -118,6 +128,16 @@ class ChatController extends Controller
         }
 
         $chat->update(['status' => 'closed']);
+
+        $bot = $chat->telegramBot;
+        $tgChannelId = config('myapp.support_chat_id');
+        $text = (
+            "✅ <b>Заявка закрыта ПОЛЬЗОВАТЕЛЕМ: </b>\n"
+            . "<b>Номер:</b> <b>{$chat->ticket_id}</b>\n"
+            . "<b>Категория:</b> {$chat->ticket_type}\n"
+        );
+
+        $tgApi->sendMessage($bot?->token, (int)$tgChannelId, $text);
         event(new StoreTelegramChatEvent($chat));
         return response()->json(['status' => 'ok', 'closed' => true, 'chat_db_id' => $chat->id]);
     }
