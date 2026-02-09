@@ -15,9 +15,9 @@ Route::get('/', function () {
         : redirect()->route('login');
 });
 
-Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'verified'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth'])->name('dashboard');
 
-Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
+Route::get('/chat', [ChatController::class, 'index'])->name('chat.index')->middleware(['auth']);
 Route::get('/chat/{chat}', [ChatController::class, 'show'])->name('chat.show')->middleware(['auth', 'can:view,chat']);
 
 Route::get('/assign', [AssignController::class, 'index'])->name('assign.index')->middleware(['auth', 'can:admin']);
