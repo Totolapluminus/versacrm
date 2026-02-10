@@ -245,7 +245,7 @@ const ticketTypeLabel = (key) => {
     <AuthenticatedLayout>
         <div class="bg-white grid grid-cols-12 min-h-[calc(100vh-64px)]">
             <!-- слева список чатов (пока заглушка) -->
-            <aside class="col-span-3 bg-white shadow-lg relative z-10">
+            <aside class="col-span-3 bg-white shadow-lg relative z-10 max-h-[calc(100vh-4rem)] overflow-y-auto">
                 <div v-for="bot in botsRef" :key="bot.id">
                     <h2 class="bg-gray-50 shadow-sm py-1.5 pl-6" >Бот "{{ bot.username }}"</h2>
                     <div class="my-3">
