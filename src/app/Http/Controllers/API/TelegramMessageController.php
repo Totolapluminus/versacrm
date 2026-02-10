@@ -58,6 +58,7 @@ class TelegramMessageController extends Controller
                 'status' => 'open',
                 'user_id' => $user?->id,
                 'ticket_type' => $data['ticket_type'],
+                'ticket_domain' => $data['ticket_domain'],
             ]
         );
 
@@ -78,9 +79,11 @@ class TelegramMessageController extends Controller
             $text = (
                 "🆘 <b>Новое обращение в техподдержку</b>\n"
                 . "<b>Номер:</b> <b>{$data['ticket_id']}</b>\n"
+                . "<b>Сайт:</b> {$data['ticket_domain']}\n"
                 . "<b>Категория:</b> {$data['ticket_type']}\n"
                 . "<b>От:</b> {$firstName} {$lastName} <code>@{$username}</code>\n"
                 . "<b>User ID:</b> <code>{$telegramUser->telegram_id}</code>\n"
+                . "<b>Оператор:</b> <b>{$chat->user->name}</b>\n"
                 . "<b>Bot:</b> <code>" . ($chat->telegramBot->username) . "</code> (db_id=<code>{$chat->telegramBot->id}</code>)\n\n"
                 . "<b>Описание:</b>\n{$telegramMessage->text}\n"
             );
@@ -92,7 +95,7 @@ class TelegramMessageController extends Controller
         $chat->update(['has_new' => true]);
 
         $chat = TelegramChat::query()
-            ->select('id','telegram_bot_id','telegram_user_id', 'user_id', 'status', 'has_new', 'chat_id', 'ticket_id', 'ticket_type')
+            ->select('id','telegram_bot_id','telegram_user_id', 'user_id', 'status', 'has_new', 'chat_id', 'ticket_id', 'ticket_type', 'ticket_domain')
             ->addSelect([
                 'last_message_in_text' => TelegramMessage::select('text')
                     ->whereColumn('telegram_messages.telegram_chat_id', 'telegram_chats.id')

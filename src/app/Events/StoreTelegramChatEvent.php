@@ -37,6 +37,7 @@ class StoreTelegramChatEvent implements ShouldBroadcast
             'status' => $telegramChat->status,
             'ticket_id' => $telegramChat->ticket_id,
             'ticket_type' => $telegramChat->ticket_type,
+            'ticket_domain' => $telegramChat->ticket_domain,
             'last_message_in_text' => $telegramChat->last_message_in_text,
             'last_message_in_at' => $telegramChat->last_message_in_at,
             'last_message_in_human' => $telegramChat->last_message_in_human,

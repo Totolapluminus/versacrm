@@ -24,7 +24,7 @@ class ChatController extends Controller
         }
         $bots = $botsQuery->with([
                 'telegramChats' => function ($q) use ($user) {
-                    $q->select('id','telegram_bot_id','telegram_user_id', 'user_id', 'status', 'has_new', 'ticket_id', 'ticket_type')
+                    $q->select('id','telegram_bot_id','telegram_user_id', 'user_id', 'status', 'has_new', 'ticket_id', 'ticket_type', 'ticket_domain')
                         ->addSelect([
                             'last_message_in_text' => TelegramMessage::select('text')
                                 ->whereColumn('telegram_messages.telegram_chat_id', 'telegram_chats.id')
@@ -88,7 +88,7 @@ class ChatController extends Controller
 
         $bots = $botsQuery->with([
             'telegramChats' => function ($q) use ($user) {
-                $q->select('id','telegram_bot_id','telegram_user_id', 'user_id', 'status', 'has_new', 'ticket_id', 'ticket_type')
+                $q->select('id','telegram_bot_id','telegram_user_id', 'user_id', 'status', 'has_new', 'ticket_id', 'ticket_type', 'ticket_domain')
                     ->addSelect([
                         'last_message_in_text' => TelegramMessage::select('text')
                             ->whereColumn('telegram_messages.telegram_chat_id', 'telegram_chats.id')

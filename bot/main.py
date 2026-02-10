@@ -29,6 +29,17 @@ CATEGORY_BY_TITLE = {c["title"]: c["key"] for c in CATEGORIES}
 CATEGORY_TITLE_BY_KEY = {c["key"]: c["title"] for c in CATEGORIES}
 CATEGORY_TITLES = set(CATEGORY_BY_TITLE.keys())
 
+DOMAINS = [
+    {"key": "lms",      "title": "🎓 Портал СДО lms.melsu.ru"},
+    {"key": "rasp",     "title": "🗓️ Расписание rasp.melsu.ru"},
+    {"key": "my",       "title": "🔑 Личный кабинет my.melsu.ru"},
+    {"key": "other",    "title": "❓ Другое"},
+]
+
+DOMAIN_BY_TITLE = {d["title"]: d["key"] for d in DOMAINS}
+DOMAIN_TITLE_BY_KEY = {d["key"]: d["title"] for d in DOMAINS}
+DOMAIN_TITLES = set(DOMAIN_BY_TITLE.keys())
+
 CANCEL_TEXT = "❌ Отмена"
 NEW_TICKET_TEXT = "❌ Закрыть заявку"
 
@@ -103,8 +114,9 @@ def api_close_active_chat(bot_db_id: int, tg_chat_id: int):
 
 @dataclass
 class UserState:
-    # choose_category -> wait_text -> chat
+    # choose_domain -> choose_category -> wait_text -> chat
     step: str
+    ticket_domain: Optional[str] = None
     category_key: Optional[str] = None
     ticket_id: Optional[str] = None
 
@@ -115,7 +127,8 @@ user_states: Dict[Tuple[int, int], UserState] = {}
 
 def reset_new_ticket(bot_db_id: int, user_id: int) -> None:
     user_states[(bot_db_id, user_id)] = UserState(
-        step="choose_category",
+        step="choose_domain",
+        ticket_domain=None,
         category_key=None,
         ticket_id=generate_ticket_id()
     )
@@ -126,6 +139,19 @@ def build_categories_keyboard() -> types.ReplyKeyboardMarkup:
     row = []
     for c in CATEGORIES:
         row.append(types.KeyboardButton(c["title"]))
+        if len(row) == 2:
+            kb.row(*row)
+            row = []
+    if row:
+        kb.row(*row)
+    kb.row(types.KeyboardButton(CANCEL_TEXT))
+    return kb
+
+def build_domains_keyboard() -> types.ReplyKeyboardMarkup:
+    kb = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    row = []
+    for d in DOMAINS:
+        row.append(types.KeyboardButton(d["title"]))
         if len(row) == 2:
             kb.row(*row)
             row = []
@@ -177,22 +203,32 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
             "bot_db_id": bot_db_id,
             "bot_username": bot_username,
 
-
             "ticket_type": state.category_key,
             "ticket_id": state.ticket_id,
+            "ticket_domain": state.ticket_domain,
         }
 
-    def ask_choose_category(message: types.Message) -> None:
+    def ask_choose_domain (message: types.Message) -> None:
         bot.send_message(
             message.chat.id,
+            "Выберите сайт с которым у вас проблема 👇\n"
+            'Если хотите обратиться по другому поводу - нажмите "❓ Другое".',
+            reply_markup=build_domains_keyboard()
+        )
+
+    def ask_choose_category(message: types.Message, ticket_domain_key: str) -> None:
+        bot.send_message(
+            message.chat.id,
+            f"Сайт выбран: <b>{DOMAIN_TITLE_BY_KEY.get(ticket_domain_key, ticket_domain_key)}</b>\n\n"
             "Выберите категорию проблемы кнопкой ниже 👇\n"
-            "Без выбора категории отправить сообщение нельзя.",
+            'Если не нашли свою категорию - нажмите "❓ Другое".',
             reply_markup=build_categories_keyboard()
         )
 
-    def ask_problem_text(message: types.Message, category_key: str) -> None:
+    def ask_problem_text(message: types.Message, category_key: str, ticket_domain_key: str) -> None:
         bot.send_message(
             message.chat.id,
+            f"Сайт выбран: <b>{DOMAIN_TITLE_BY_KEY.get(ticket_domain_key, ticket_domain_key)}</b>\n"
             f"Категория выбрана: <b>{CATEGORY_TITLE_BY_KEY.get(category_key, category_key)}</b>\n\n"
             "Теперь опишите проблему одним сообщением.\n"
             "Это создаст новую заявку и попадёт оператору.",
@@ -205,7 +241,7 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
             return
         api_close_active_chat(bot_db_id, message.chat.id)
         reset_new_ticket(bot_db_id, message.from_user.id)
-        ask_choose_category(message)
+        ask_choose_domain(message)
 
     @bot.message_handler(func=lambda m: (m.text or "").strip() == NEW_TICKET_TEXT, content_types=["text"])
     def on_new_ticket_button(message: types.Message):
@@ -213,7 +249,7 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
             return
         api_close_active_chat(bot_db_id, message.chat.id)
         reset_new_ticket(bot_db_id, message.from_user.id)
-        ask_choose_category(message)
+        ask_choose_domain(message)
 
     @bot.message_handler(commands=["cancel"])
     def cmd_cancel(message: types.Message):
@@ -223,8 +259,8 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
         reset_new_ticket(bot_db_id, message.from_user.id)
         bot.send_message(
             message.chat.id,
-            "Ок, отменил. Выберите категорию заново 👇",
-            reply_markup=build_categories_keyboard()
+            "Ок, отменил. Выберите сайт заново 👇",
+            reply_markup=build_domains_keyboard()
         )
 
     @bot.message_handler(func=lambda m: (m.text or "").strip() == CANCEL_TEXT, content_types=["text"])
@@ -246,9 +282,9 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
             reset_new_ticket(bot_db_id, user_id)
             bot.send_message(
                 message.chat.id,
-                "⚠️ Похоже, бот был перезапущен и я не вижу выбранной категории.\n"
-                "Пожалуйста, выберите категорию заново 👇",
-                reply_markup=build_categories_keyboard()
+                "⚠️ Похоже, бот был перезапущен.\n"
+                "Пожалуйста, выберите сайт заново 👇",
+                reply_markup=build_domains_keyboard()
             )
             return
 
@@ -258,23 +294,46 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
             bot.send_message(
                 message.chat.id,
                 "⚠️ Не удалось восстановить заявку. Начнём заново.\n"
-                "Выберите категорию 👇",
-                reply_markup=build_categories_keyboard()
+                "Выберите сайт 👇",
+                reply_markup=build_domains_keyboard()
             )
             return
 
+        if state.step == "choose_domain":
+            if text in DOMAIN_TITLES:
+                state.ticket_domain = DOMAIN_BY_TITLE[text]
+                state.step = "choose_category"
+                user_states[key] = state
+                ask_choose_category(message, state.ticket_domain)
+                return
+
+            ask_choose_domain(message)
+            return
+
         if state.step == "choose_category":
+            if not state.ticket_domain:
+                state.step = "choose_domain"
+                user_states[key] = state
+                ask_choose_domain(message)
+                return
+
             if text in CATEGORY_TITLES:
                 state.category_key = CATEGORY_BY_TITLE[text]
                 state.step = "wait_text"
                 user_states[key] = state
-                ask_problem_text(message, state.category_key)
+                ask_problem_text(message, state.category_key, state.ticket_domain)
                 return
 
-            ask_choose_category(message)
+            ask_choose_category(message, state.ticket_domain)
             return
 
         if state.step == "wait_text":
+            if not state.ticket_domain:
+                state.step = "choose_domain"
+                user_states[key] = state
+                ask_choose_domain(message)
+                return
+
             if not text:
                 bot.send_message(message.chat.id, "Сообщение пустое. Опишите проблему текстом.")
                 return
@@ -283,7 +342,7 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
                 # на всякий случай
                 state.step = "choose_category"
                 user_states[key] = state
-                ask_choose_category(message)
+                ask_choose_category(message, state.ticket_domain)
                 return
 
             payload = build_crm_payload(message, text, state)
@@ -341,7 +400,7 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
             return
 
         reset_new_ticket(bot_db_id, user_id)
-        ask_choose_category(message)
+        ask_choose_domain(message)
 
     return bot, label
 

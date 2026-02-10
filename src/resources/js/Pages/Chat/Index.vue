@@ -66,10 +66,20 @@ const TICKET_TYPE_LABELS = {
     bug: 'Баг в кабинете',
     other: 'Другие проблемы',
 }
-
 const ticketTypeLabel = (key) => {
     if (!key) return '—'
     return TICKET_TYPE_LABELS[key] || key // если ключ неизвестен — покажем его
+}
+
+const TICKET_DOMAIN_LABELS = {
+    my: 'my.melsu',
+    lms: 'lms.melsu',
+    rasp: 'rasp.melsu',
+    other: 'Другое',
+}
+const ticketDomainLabel = (key) => {
+    if (!key) return '—'
+    return TICKET_DOMAIN_LABELS[key] || key
 }
 
 </script>
@@ -100,10 +110,16 @@ const ticketTypeLabel = (key) => {
 
                                     <div class="flex justify-between items-center">
                                         <span class="text-[13px] text-gray-400 truncate" >{{ chat.last_message_in_text }}</span>
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-[10px] text-gray-400" >{{ ticketTypeLabel(chat.ticket_type) }}</span>
-                                            <div v-if="chat.status === 'open'" class="w-2 h-2 bg-blue-700 rounded-full"></div>
-                                            <div v-if="chat.has_new" class="w-2 h-2 bg-red-700 rounded-full"></div>
+                                        <div class="flex items-center gap-1.5">
+                                            <div class="flex items-center gap-0.5">
+                                                <span class="text-[10px] text-gray-400" >{{ ticketDomainLabel(chat.ticket_domain) }}</span>
+                                                <span class="text-[10px] text-gray-400" >|</span>
+                                                <span class="text-[10px] text-gray-400" >{{ ticketTypeLabel(chat.ticket_type) }}</span>
+                                            </div>
+                                            <div class="flex items-center gap-0.5">
+                                                <div v-if="chat.status === 'open'" class="w-2 h-2 bg-blue-700 rounded-full"></div>
+                                                <div v-if="chat.has_new" class="w-2 h-2 bg-red-700 rounded-full"></div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

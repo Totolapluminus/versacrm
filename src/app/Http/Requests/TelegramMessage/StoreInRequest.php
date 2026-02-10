@@ -35,6 +35,7 @@ class StoreInRequest extends FormRequest
             'bot_username' => 'nullable|string',
             'ticket_type' => 'required|string',
             'ticket_id' => 'required|string',
+            'ticket_domain' => 'required|string',
         ];
     }
 }
