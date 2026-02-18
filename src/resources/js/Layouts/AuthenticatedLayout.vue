@@ -11,6 +11,7 @@ import {useNotificationStore} from "@/Stores/notificationStore.js";
 
 import {ChartBarSquareIcon} from "@heroicons/vue/24/outline/index.js";
 import {ChatBubbleLeftRightIcon} from "@heroicons/vue/24/outline/index.js";
+import {MagnifyingGlassIcon} from "@heroicons/vue/24/outline/index.js";
 
 function logoutTokenClean() {
     localStorage.removeItem('token')
@@ -97,6 +98,14 @@ onUnmounted(() => {
                                     {{ notificationStore.count() }}
                                     </span>
                                 </div>
+
+                                <NavLink
+                                    :href="route('search.index')"
+                                    :active="route().current('search.index')"
+                                >
+                                    <MagnifyingGlassIcon stroke="currentColor" class="w-5 h-5 mr-1"></MagnifyingGlassIcon>
+                                    Поиск
+                                </NavLink>
 
                                 <NavLink v-if="$page.props.auth.user.role === 'admin'"
                                          :href="route('assign.index')"

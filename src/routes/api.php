@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\API\ChatController;
+use App\Http\Controllers\API\SearchController;
 use App\Http\Controllers\API\TelegramBotController;
 use App\Http\Controllers\API\TelegramMessageController;
 use App\Models\TelegramChat;
@@ -18,6 +19,8 @@ Route::delete('/chat/{chat}', [ChatController::class, 'destroy'])->name('chat.de
 
 Route::get('/telegram/chat-status', [ChatController::class, 'getStatus']);
 Route::post('/telegram/close-chat', [ChatController::class, 'closeChat']);
+
+Route::get('/search', [SearchController::class, 'search']);
 
 
 //Route::get('/user', function (Request $request) {

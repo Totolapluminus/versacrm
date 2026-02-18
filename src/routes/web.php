@@ -5,6 +5,7 @@ use App\Http\Controllers\AssignController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SearchController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -22,6 +23,8 @@ Route::get('/chat/{chat}', [ChatController::class, 'show'])->name('chat.show')->
 
 Route::get('/assign', [AssignController::class, 'index'])->name('assign.index')->middleware(['auth', 'can:admin']);
 Route::post('/assign', [AssignController::class, 'store'])->name('assign.store')->middleware(['auth', 'can:admin']);
+
+Route::get('/search', [SearchController::class, 'index'])->name('search.index')->middleware(['auth']);
 
 //Route::middleware('auth')->group(function () {
 //    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
