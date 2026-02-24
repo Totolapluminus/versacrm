@@ -126,7 +126,7 @@ class ChatController extends Controller
         });
 
         $chat->load([
-            'telegramMessages',
+            'telegramMessages.attachments',
             'telegramUser:id,username,first_name',
         ]);
 

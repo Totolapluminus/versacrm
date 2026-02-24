@@ -6,6 +6,8 @@ import sys
 import time
 import threading
 import secrets
+import io
+import mimetypes
 from dataclasses import dataclass
 from typing import Optional, Dict, Tuple
 
@@ -98,6 +100,28 @@ def api_post_message(payload: dict, label: str) -> requests.Response:
 
     r.raise_for_status()
     return r
+
+
+def api_post_message_with_attachment(payload: dict, file_bytes: bytes, filename: str, mime: str, label: str) -> requests.Response:
+    url = f"{LARAVEL_API_URL}/api/messages"
+
+    print(f"[{label}] POST {url} (multipart)", flush=True)
+    print(f"[{label}] Payload: {payload}", flush=True)
+    print(f"[{label}] Attachment: {filename} ({mime}), {len(file_bytes)} bytes", flush=True)
+
+    files = {
+        "attachment": (filename, io.BytesIO(file_bytes), mime),
+    }
+
+    # ВАЖНО: payload передаем как data, не json
+    r = session.post(url, headers=headers, data=payload, files=files, timeout=60)
+
+    print(f"[{label}] Response status: {r.status_code}", flush=True)
+    print(f"[{label}] Response text: {r.text}", flush=True)
+
+    r.raise_for_status()
+    return r
+
 
 def api_close_active_chat(bot_db_id: int, tg_chat_id: int):
     try:
@@ -208,6 +232,42 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
             "ticket_domain": state.ticket_domain,
         }
 
+    def download_file_bytes(file_id: str) -> tuple[bytes, str, str]:
+            f = bot.get_file(file_id)
+            file_path = f.file_path  # например "photos/file_123.jpg"
+            file_bytes = bot.download_file(file_path)
+
+            # имя файла и mime по расширению из file_path
+            filename = os.path.basename(file_path) or "image"
+            mime, _ = mimetypes.guess_type(filename)
+            mime = mime or "application/octet-stream"
+            return file_bytes, filename, mime
+
+    def extract_attachment(message: types.Message) -> tuple[bytes, str, str] | None:
+            # photo
+            if getattr(message, "photo", None):
+                file_id = message.photo[-1].file_id  # самое большое
+                file_bytes, filename, mime = download_file_bytes(file_id)
+
+                # Телега иногда даёт .jpg, иногда без расширения — подстрахуемся
+                if mime == "application/octet-stream":
+                    mime = "image/jpeg"
+                    if "." not in filename:
+                        filename += ".jpg"
+                return file_bytes, filename, mime
+
+            # document (если юзер прислал как файл)
+            doc = getattr(message, "document", None)
+            if doc:
+                # отсекаем всё кроме разрешенных картинок
+                mime = doc.mime_type or ""
+                if mime not in ("image/jpeg", "image/png", "image/gif", "image/webp"):
+                    return None
+                file_bytes, filename, _ = download_file_bytes(doc.file_id)
+                filename = doc.file_name or filename or "image"
+                return file_bytes, filename, mime
+            return None
+
     def ask_choose_domain (message: types.Message) -> None:
         bot.send_message(
             message.chat.id,
@@ -230,8 +290,11 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
             message.chat.id,
             f"Сайт выбран: <b>{DOMAIN_TITLE_BY_KEY.get(ticket_domain_key, ticket_domain_key)}</b>\n"
             f"Категория выбрана: <b>{CATEGORY_TITLE_BY_KEY.get(category_key, category_key)}</b>\n\n"
-            "Теперь опишите проблему одним сообщением.\n"
-            "Это создаст новую заявку и попадёт оператору.",
+            "Теперь ПОДРОБНО ОПИШИТЕ ПРОБЛЕМУ одним сообщением.\n\n"
+            "В нем укажите ваше ФИО, а также EMAIL или ЛОГИН на сайте.\n"
+            "Это обязательно для оператора.\n\n"
+            "Если вы хотите ОТПРАВИТЬ ФОТО,\n" "отправьте его СЛЕДУЮЩИМ СООБЩЕНИЕМ\n\n"
+            "Заявка попадёт оператору и он ответит вам в ближайшее время.",
             reply_markup=build_cancel_keyboard()
         )
 
@@ -402,6 +465,129 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
         reset_new_ticket(bot_db_id, user_id)
         ask_choose_domain(message)
 
+    @bot.message_handler(content_types=["photo", "document"])
+    def on_media(message: types.Message):
+
+        print(f"[{label}] GOT MEDIA: content_type={message.content_type}", flush=True)
+
+        if not message.from_user:
+            return
+
+        user_id = message.from_user.id
+        key = (bot_db_id, user_id)
+
+        state = user_states.get(key)
+        if state is None:
+            reset_new_ticket(bot_db_id, user_id)
+            bot.send_message(
+                message.chat.id,
+                "⚠️ Похоже, бот был перезапущен.\n"
+                "Пожалуйста, выберите сайт заново 👇",
+                reply_markup=build_domains_keyboard()
+            )
+            return
+
+        if not state.ticket_id:
+            reset_new_ticket(bot_db_id, user_id)
+            bot.send_message(
+                message.chat.id,
+                "⚠️ Не удалось восстановить заявку. Начнём заново.\n"
+                "Выберите сайт 👇",
+                reply_markup=build_domains_keyboard()
+            )
+            return
+
+        att = extract_attachment(message)
+        if not att:
+            bot.reply_to(message, "⚠️ Я принимаю только изображения: JPG / PNG / GIF / WEBP (до 15MB).")
+            return
+
+        file_bytes, filename, mime = att
+        text = (getattr(message, "caption", None) or "").strip()
+
+        # На этапах выбора — просто просим выбрать
+        if state.step in ("choose_domain", "choose_category"):
+            if state.step == "choose_domain":
+                ask_choose_domain(message)
+            else:
+                if state.ticket_domain:
+                    ask_choose_category(message, state.ticket_domain)
+                else:
+                    state.step = "choose_domain"
+                    user_states[key] = state
+                    ask_choose_domain(message)
+            return
+
+        # На wait_text: фото может быть ПЕРВЫМ сообщением заявки (без текста тоже ок)
+        if state.step == "wait_text":
+            if not state.ticket_domain:
+                state.step = "choose_domain"
+                user_states[key] = state
+                ask_choose_domain(message)
+                return
+
+            if not state.category_key:
+                state.step = "choose_category"
+                user_states[key] = state
+                ask_choose_category(message, state.ticket_domain)
+                return
+
+            payload = build_crm_payload(message, text, state)
+
+            try:
+                api_post_message_with_attachment(payload, file_bytes, filename, mime, label=label)
+            except Exception as e:
+                bot.reply_to(message, f"⚠️ Ошибка при подключении к API: {e}")
+                return
+
+            state.step = "chat"
+            user_states[key] = state
+
+            bot.send_message(
+                message.chat.id,
+                "✅ Заявка отправлена оператору.\n"
+                f"Номер: <b>{state.ticket_id}</b>\n"
+                "Можете продолжать переписку в этом чате.\n\n"
+                "Если нужна новая заявка или вопрос решен — нажмите «❌ Закрыть заявку».",
+                reply_markup=build_chat_keyboard()
+            )
+            return
+
+        # В чате заявки — просто отправляем вложение
+        if state.step == "chat":
+            if not state.category_key:
+                state.step = "choose_category"
+                state.category_key = None
+                user_states[key] = state
+                bot.send_message(
+                    message.chat.id,
+                    "⚠️ Я не вижу выбранной категории для этой заявки.\n"
+                    "Пожалуйста, выберите категорию заново 👇",
+                    reply_markup=build_categories_keyboard()
+                )
+                return
+
+            try:
+                info = api_get_chat_status(bot_db_id, message.chat.id)
+                if info and info.get("chat_status") == "closed":
+                    bot.reply_to(
+                        message,
+                        "Заявка закрыта.\nЕсли нужно — создайте новую, нажав «❌ Закрыть заявку» или /start."
+                    )
+                    return
+
+                payload = build_crm_payload(message, text, state)
+                api_post_message_with_attachment(payload, file_bytes, filename, mime, label=label)
+
+            except Exception as e:
+                bot.reply_to(message, f"⚠️ Ошибка при подключении к API: {e}")
+                return
+
+            return
+
+        # fallback
+        reset_new_ticket(bot_db_id, user_id)
+        ask_choose_domain(message)
     return bot, label
 
 

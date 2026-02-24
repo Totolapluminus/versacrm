@@ -7,6 +7,7 @@ import {Link} from "@inertiajs/vue3";
 import {useNotificationStore} from '@/Stores/notificationStore'
 
 import {PaperAirplaneIcon} from "@heroicons/vue/24/solid/index.js";
+import Attachment from "@/Components/Chat/Attachment.vue";
 
 const {props} = usePage()
 const user = props.user ?? 'none'
@@ -59,7 +60,14 @@ onMounted(() => scrollToBottom())
 onMounted(() => {
     window.Echo.private(`store-telegram-message-to-chat-${currentChatDbId}`)
         .listen('.store-telegram-message-to-chat', res => {
-            messages.value.push(res.telegramMessage)
+
+            console.log(res)
+            console.log(messages.value)
+            console.log('A1', res.telegramMessage?.attachments_urls)
+            console.log('A2', res.telegramMessage?.telegramMessage?.attachments_urls)
+
+            const msg = res.telegramMessage?.telegramMessage ?? res.telegramMessage
+            messages.value.push(msg)
         })
 })
 onMounted(() => {
@@ -338,7 +346,8 @@ const ticketDomainLabel = (key) => {
                     ? 'bg-red-700 border border-red-600 text-white rounded-br-md'
                     : 'bg-gray-50 border border-gray-50 text-gray-900 rounded-bl-md'"
                         >
-                            <p>{{ m.text }}</p>
+                            <Attachment :src="m.attachments_urls[0]"></Attachment>
+                            <p v-if="m.text">{{ m.text}}</p>
                             <!--                            <div class="mt-1 text-[11px] opacity-70 text-right">{{ m.time }}</div>-->
                             <div class="mt-1 opacity-70 text-[11px] text-right">{{ m.time_human }}</div>
                         </div>

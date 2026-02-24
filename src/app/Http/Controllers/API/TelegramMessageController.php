@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\TelegramMessage\StoreInRequest;
 use App\Http\Requests\TelegramMessage\StoreOutRequest;
 use App\Http\Resources\TelegramMessageResource;
+use App\Models\Attachment;
 use App\Models\TelegramBot;
 use App\Models\TelegramChat;
 use App\Models\TelegramMessage;
@@ -20,6 +21,7 @@ use Illuminate\Http\Request;
 use Illuminate\Log\Logger;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class TelegramMessageController extends Controller
 {
@@ -65,10 +67,17 @@ class TelegramMessageController extends Controller
         $telegramMessage = TelegramMessage::Create([
             'telegram_user_id' => $telegramUser->id,
             'telegram_chat_id' => $chat->id,
-            'text' => $data['text'],
+            'text' => $data['text'] ?? '',
             'direction' => $data['direction'],
         ]);
 
+        if ($request->hasFile('attachment')) {
+            $path = $request->file('attachment')->store('attachments', 'public');
+            Attachment::Create([
+                'telegram_message_id' => $telegramMessage->id,
+                'path' => $path,
+            ]);
+        }
 
         if ($chat->wasRecentlyCreated) {
             $firstName = $telegramUser->first_name ?? '';
@@ -95,7 +104,7 @@ class TelegramMessageController extends Controller
         $chat->update(['has_new' => true]);
 
         $chat = TelegramChat::query()
-            ->select('id','telegram_bot_id','telegram_user_id', 'user_id', 'status', 'has_new', 'chat_id', 'ticket_id', 'ticket_type', 'ticket_domain')
+            ->select('id','telegram_bot_id','telegram_user_id', 'user_id', 'status', 'has_new', 'chat_id', 'ticket_id', 'ticket_type', 'ticket_domain',)
             ->addSelect([
                 'last_message_in_text' => TelegramMessage::select('text')
                     ->whereColumn('telegram_messages.telegram_chat_id', 'telegram_chats.id')
@@ -111,9 +120,11 @@ class TelegramMessageController extends Controller
 
 //        Log::info("LOGGED CHAT",$chat->toArray());
 
+
         event(new StoreTelegramChatEvent($chat));
         event(new StoreTelegramMessageEvent($telegramMessage, $chat));
         event(new NewMessageNotificationEvent($chat));
+
 
         return response()->json(['status' => 'ok'], 200);
     }

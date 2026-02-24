@@ -149,7 +149,13 @@ class ChatController extends Controller
         abort_unless($chat->status === 'closed', 422, 'Можно удалить только закрытый чат.');
 
         DB::transaction(function () use ($chat) {
-            $chat->telegramMessages()->delete();
+            $chat->load('telegramMessages.attachments');
+
+            foreach ($chat->telegramMessages as $m) {
+                $m->attachments->each->delete();
+                $m->delete();
+            }
+
             $chat->delete();
         });
 

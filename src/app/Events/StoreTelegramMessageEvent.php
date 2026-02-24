@@ -12,6 +12,7 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 
 class StoreTelegramMessageEvent implements ShouldBroadcast
 {
@@ -56,6 +57,8 @@ class StoreTelegramMessageEvent implements ShouldBroadcast
      */
     public function broadcastWith(): array
     {
+        $this->telegramMessage->load('attachments');
+
         return [
             'telegramMessage' => TelegramMessageResource::make($this->telegramMessage)->resolve()
         ];
