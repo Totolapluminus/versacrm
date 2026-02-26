@@ -84,7 +84,21 @@ class TelegramMessageController extends Controller
             $lastName  = $telegramUser->last_name ?? '';
             $username  = $telegramUser->username ?? '';
 
+            $chatUrl = route('chat.show', ['chat' => $chat->id]);
+
+            $replyMarkup = [
+                'inline_keyboard' => [
+                    [
+                        [
+                            'text' => 'Открыть чат',
+                            'url' => $chatUrl
+                        ]
+                    ]
+                ]
+            ];
+
             $token = $chat->telegramBot->token;
+
             $text = (
                 "🆘 <b>Новое обращение в техподдержку</b>\n"
                 . "<b>Номер:</b> <b>{$data['ticket_id']}</b>\n"
@@ -97,7 +111,7 @@ class TelegramMessageController extends Controller
                 . "<b>Описание:</b>\n{$telegramMessage->text}\n"
             );
             $tgChannelId = config('myapp.support_chat_id');
-            $tgApi->sendMessage($token, (int)$tgChannelId, $text);
+            $tgApi->sendMessage($token, (int)$tgChannelId, $text, $replyMarkup);
         }
 
 
