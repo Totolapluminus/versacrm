@@ -92,6 +92,10 @@ class TelegramMessageController extends Controller
                         [
                             'text' => 'Открыть чат',
                             'url' => $chatUrl
+                        ],
+                        [
+                            'text' => 'Взять в работу',
+                            'callback_data' => 'take:' . $chat->id,
                         ]
                     ]
                 ]

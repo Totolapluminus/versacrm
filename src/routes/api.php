@@ -19,6 +19,7 @@ Route::delete('/chat/{chat}', [ChatController::class, 'destroy'])->name('chat.de
 
 Route::get('/telegram/chat-status', [ChatController::class, 'getStatus']);
 Route::post('/telegram/close-chat', [ChatController::class, 'closeChat']);
+Route::post('/telegram/take-chat', [ChatController::class, 'takeChat']);
 
 Route::get('/search', [SearchController::class, 'search']);
 

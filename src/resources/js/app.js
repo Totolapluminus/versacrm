@@ -21,7 +21,7 @@ createInertiaApp({
 
         const saved = localStorage.getItem('token')
         if (saved) {
-            axios.defaults.headers.common['Authorization'] = `Bearer ${saved}`
+            window.axios.defaults.headers.common['Authorization'] = `Bearer ${saved}`
         }
 
         const pinia = createPinia()

@@ -40,3 +40,5 @@ $u = App\Models\User::first();
 $token = $u->createToken('crm-bot')->plainTextToken;
 $u = App\Models\User::first();
 $token = $u->createToken('crm-bot')->plainTextToken;
+config('app.url')
+config('app.url')

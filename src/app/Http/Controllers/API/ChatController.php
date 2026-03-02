@@ -76,7 +76,21 @@ class ChatController extends Controller
         ]);
 
         $bot = $chat->telegramBot;
+
+        $chatUrl = route('chat.show', ['chat' => $chat->id]);
+        $replyMarkup = [
+            'inline_keyboard' => [
+                [
+                    [
+                        'text' => 'Открыть чат',
+                        'url' => $chatUrl
+                    ]
+                ]
+            ]
+        ];
+
         $tgChannelId = config('myapp.support_chat_id');
+
         $text = (
             "⚠️ <b>Переназначение обращения: </b>\n"
             . "<b>От:</b> <b> {$oldOperatorName}</b>\n"
@@ -86,7 +100,7 @@ class ChatController extends Controller
             . "<b>Bot:</b> {$bot->username}\n"
         );
 
-        $tgApi->sendMessage($bot?->token, (int)$tgChannelId, $text);
+        $tgApi->sendMessage($bot?->token, (int)$tgChannelId, $text, $replyMarkup);
 
         return response()->json(['status' => 'ok']);
     }
@@ -140,6 +154,29 @@ class ChatController extends Controller
         $tgApi->sendMessage($bot?->token, (int)$tgChannelId, $text);
         event(new StoreTelegramChatEvent($chat));
         return response()->json(['status' => 'ok', 'closed' => true, 'chat_db_id' => $chat->id]);
+    }
+
+    public function takeChat(Request $request) {
+        $data = $request->validate([
+            'chat_id' => 'required|exists:telegram_chats,id',
+            'operator_tg_id' => 'required|exists:users,telegram_id'
+        ]);
+
+        $user = User::where('telegram_id', $data['operator_tg_id'])->where('role', 'operator')->first();
+        abort_if(!$user, 403, 'Пользователь не является оператором');
+
+        DB::transaction(function () use ($data, $user) {
+           $chat = TelegramChat::whereKey($data['chat_id'])->lockForUpdate()->firstOrFail();
+            if ($chat->status === 'closed') {
+                abort(410, 'Заявка уже закрыта');
+            }
+            $chat->update([
+                'user_id' => $user->id,
+                'status' => 'in_progress',
+            ]);
+        });
+
+        return response()->json(['status' => 200]);
     }
 
     public function destroy(TelegramChat $chat)

@@ -17,3 +17,19 @@ window.Echo = new Echo({
 
 window.axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
 
+window.axios.interceptors.request.use(
+    (res) => res,
+    (err) => {
+        const status = err?.response?.status
+
+        if(status === 401 || status === 419) {
+            localStorage.removeItem('token')
+            delete window.axios.defaults.headers.common['Authorization']
+            window.location.href = '/login'
+            return
+        }
+
+        return Promise.reject(err)
+    }
+)
+

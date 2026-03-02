@@ -361,14 +361,14 @@ const ticketDomainLabel = (key) => {
                     <input
                         v-model="draft"
                         type="text"
-                        :disabled="chatStatus === 'closed'"
-                        :placeholder="chatStatus === 'closed' ? 'Заявка закрыта.' : 'Сообщение…'"
+                        :disabled="chatStatus === 'closed' || (user.id !== currentChat.chatOperator && user.role !== 'admin')"
+                        :placeholder="chatStatus === 'closed' || (user.id !== currentChat.chatOperator && user.role !== 'admin') ? 'ЗАЯВКА ЗАКРЫТА ИЛИ ПРИНАДЛЕЖИТ ДРУГОМУ ОПЕРАТОРУ' : 'Сообщение…'"
                         class="flex-1 px-4 py-2 rounded-xl border-none focus:outline-none focus:ring-0 focus:ring-blue-200"
                     />
                     <button
                         type="submit"
                         class="px-4 py-2 rounded-xl bg-red-700 text-white hover:bg-red-800 transition duration-50"
-                        :disabled="chatStatus === 'closed'"
+                        :disabled="chatStatus === 'closed' || (user.id !== currentChat.chatOperator && user.role !== 'admin')"
                     >
                         <PaperAirplaneIcon class="text-white w-6 h-6"></PaperAirplaneIcon>
                     </button>
@@ -376,7 +376,7 @@ const ticketDomainLabel = (key) => {
             </section>
 
             <aside class="col-span-2 shadow-xl relative z-10">
-                <div class="bg-white rounded-2xl shadow-md p-4 m-4 border border-gray-100 flex flex-col gap-4">
+                <div v-if="user.id === currentChat.chatOperator || user.role === 'admin'" class="bg-white rounded-2xl shadow-md p-4 m-4 border border-gray-100 flex flex-col gap-4">
                     <h3 class="font-semibold text-gray-700 mb-2">Опции чата</h3>
                     <div>
                         <label for="status" class="text-sm text-gray-600 mb-1 block">Статус:</label>
@@ -418,8 +418,8 @@ const ticketDomainLabel = (key) => {
                     >
                         Удалить чат
                     </button>
-
                 </div>
+                <div v-else class="px-3 py-6 text-center font-bold text-2xl">ЧАТ ПРИНАДЛЕЖИТ ДРУГОМУ ОПЕРАТОРУ<br><br> ОПЦИИ НЕДОСТПНЫ</div>
             </aside>
 
 

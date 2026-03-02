@@ -136,6 +136,20 @@ def api_close_active_chat(bot_db_id: int, tg_chat_id: int):
     except Exception:
         return None
 
+def api_take_chat(chat_db_id: int, operator_tg_id: int, label: str) -> tuple[int, str]:
+
+    url = f"{LARAVEL_API_URL}/api/telegram/take-chat"
+    payload = {"chat_id": chat_db_id, "operator_tg_id": operator_tg_id}
+
+    print(f"[{label}] POST {url}", flush=True)
+    print(f"[{label}] Payload: {payload}", flush=True)
+
+    r = session.post(url, headers=headers, json=payload, timeout=10)
+
+    print(f"[{label}] Response status: {r.status_code}", flush=True)
+    print(f"[{label}] Response text: {r.text}", flush=True)
+    return r.status_code, r.text
+
 @dataclass
 class UserState:
     # choose_domain -> choose_category -> wait_text -> chat
@@ -305,6 +319,16 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
         api_close_active_chat(bot_db_id, message.chat.id)
         reset_new_ticket(bot_db_id, message.from_user.id)
         ask_choose_domain(message)
+
+    @bot.message_handler(commands=["myid"])
+    def cmd_myid(message: types.Message):
+        if not message.from_user:
+            return
+        tg_id = message.from_user.id
+        text = (
+            "<b>Ваш Telegram ID:</b> <code>{}</code>\n"
+        ).format(tg_id)
+        bot.send_message(message.chat.id, text)
 
     @bot.message_handler(func=lambda m: (m.text or "").strip() == NEW_TICKET_TEXT, content_types=["text"])
     def on_new_ticket_button(message: types.Message):
@@ -588,6 +612,39 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
         # fallback
         reset_new_ticket(bot_db_id, user_id)
         ask_choose_domain(message)
+
+    @bot.callback_query_handler(func=lambda call: (call.data or "").startswith("take:"))
+    def on_take_in_work(call: types.CallbackQuery):
+        # 1) распарсить chat_id из callback_data = "take:{chat_db_id}"
+        try:
+            chat_db_id = int((call.data or "").split(":", 1)[1])
+        except Exception:
+            bot.answer_callback_query(call.id, "Некорректная кнопка", show_alert=True)
+            return
+
+        # 2) operator telegram_id берём из call.from_user.id
+        operator_tg_id = call.from_user.id if call.from_user else None
+        if not operator_tg_id:
+            bot.answer_callback_query(call.id, "Не удалось определить оператора", show_alert=True)
+            return
+
+        # 3) дергаем Laravel
+        try:
+            status, _ = api_take_chat(chat_db_id, operator_tg_id, label=label)
+        except Exception as e:
+            bot.answer_callback_query(call.id, f"Ошибка API: {e}", show_alert=True)
+            return
+
+        # 4) закрыть "крутилку" и показать результат
+        if status == 200:
+            bot.answer_callback_query(call.id, "Заявка успешно назначена вам", show_alert=False)
+        elif status == 403:
+            bot.answer_callback_query(call.id, "У вас нет прав для назначения заявки", show_alert=True)
+        elif status == 410:
+            bot.answer_callback_query(call.id, "Заявка уже закрыта", show_alert=True)
+        else:
+            bot.answer_callback_query(call.id, f"❌ Ошибка ({status})", show_alert=True)
+
     return bot, label
 
 
