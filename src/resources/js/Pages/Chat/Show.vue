@@ -136,6 +136,7 @@ async function send() {
         text: text,
         telegram_chat_db_id: currentChatDbId,
         telegram_chat_tg_id: currentChatTgId,
+        attachments_urls: [],
     }
 
     messages.value.push(optimistic)
@@ -346,7 +347,7 @@ const ticketDomainLabel = (key) => {
                     ? 'bg-red-700 border border-red-600 text-white rounded-br-md'
                     : 'bg-gray-50 border border-gray-50 text-gray-900 rounded-bl-md'"
                         >
-                            <Attachment :src="m.attachments_urls[0]"></Attachment>
+                            <Attachment v-if="m.attachments_urls?.length" :src="m.attachments_urls[0]"></Attachment>
                             <p v-if="m.text">{{ m.text}}</p>
                             <!--                            <div class="mt-1 text-[11px] opacity-70 text-right">{{ m.time }}</div>-->
                             <div class="mt-1 opacity-70 text-[11px] text-right">{{ m.time_human }}</div>
