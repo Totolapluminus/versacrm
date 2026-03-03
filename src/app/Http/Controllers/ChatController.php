@@ -130,6 +130,8 @@ class ChatController extends Controller
             'telegramUser:id,username,first_name',
         ]);
 
+        $chat->created_at_formatted = $chat->created_at?->timezone('Europe/Moscow')->format('d.m.Y H:i');
+
         return Inertia::render('Chat/Show', [
             'operators' => $operators,
             'bots' => $bots,
