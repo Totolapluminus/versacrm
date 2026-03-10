@@ -22,10 +22,12 @@ class StoreOutRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'text' => 'required|string',
+            'text' => 'nullable|string|required_without:attachments',
             'telegram_chat_db_id' => 'required|numeric|exists:telegram_chats,id',
             'telegram_chat_tg_id' => 'required|numeric|exists:telegram_chats,chat_id',
-            'direction' => 'required|string'
+            'direction' => 'required|string',
+            'attachments' => 'nullable|array|required_without:text',
+            'attachments.*' => 'file|max:15360|mimetypes:image/jpeg,image/png,image/gif,image/webp',
         ];
     }
 }

@@ -20,7 +20,7 @@ onBeforeUnmount(() => window.removeEventListener("keydown", onKey))
 
 <template>
     <div>
-        <img :src="src" :alt="alt" class="max-w-[400px] max-h-[300px] cursor-zoom-in rounded-lg" @click="isOpen = true"/>
+        <img :src="src" :alt="alt" class="max-w-[300px] max-h-[300px] cursor-zoom-in rounded-lg" @click="isOpen = true"/>
 
         <Teleport to="body">
             <div v-if="isOpen" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4" @click.self="isOpen = false">

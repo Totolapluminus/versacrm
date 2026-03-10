@@ -78,16 +78,20 @@ class ChatController extends Controller
         $bot = $chat->telegramBot;
 
         $chatUrl = route('chat.show', ['chat' => $chat->id]);
-        $replyMarkup = [
-            'inline_keyboard' => [
-                [
+
+        if(config('app.env') === 'product') {
+            $replyMarkup = [
+                'inline_keyboard' => [
                     [
-                        'text' => 'Открыть чат',
-                        'url' => $chatUrl
+                        [
+                            'text' => 'Открыть чат',
+                            'url' => $chatUrl
+                        ]
                     ]
                 ]
-            ]
-        ];
+            ];
+        }
+
 
         $tgChannelId = config('myapp.support_chat_id');
 
@@ -100,7 +104,7 @@ class ChatController extends Controller
             . "<b>Bot:</b> {$bot->username}\n"
         );
 
-        $tgApi->sendMessage($bot?->token, (int)$tgChannelId, $text, $replyMarkup);
+        $tgApi->sendMessage($bot?->token, (int)$tgChannelId, $text, $replyMarkup ?? null);
 
         return response()->json(['status' => 'ok']);
     }
@@ -121,6 +125,9 @@ class ChatController extends Controller
             'exists' => (bool)$chat,
             'chat_db_id' => $chat?->id,
             'chat_status' => $chat?->status ?? null,
+            'ticket_id' => $chat?->ticket_id ?? null,
+            'ticket_type' => $chat?->ticket_type ?? null,
+            'ticket_domain' => $chat?->ticket_domain ?? null,
         ]);
     }
 
@@ -187,13 +194,15 @@ class ChatController extends Controller
 
         $bot = $chat->telegramBot;
         $chatUrl = route('chat.show', ['chat' => $chat->id]);
-        $replyMarkup = [
-            'inline_keyboard' => [
-                [
-                    ['text' => 'Открыть чат', 'url' => $chatUrl],
+        if(config('app.env') === 'product') {
+            $replyMarkup = [
+                'inline_keyboard' => [
+                    [
+                        ['text' => 'Открыть чат', 'url' => $chatUrl],
+                    ],
                 ],
-            ],
-        ];
+            ];
+        }
         $tgChannelId = config('myapp.support_chat_id');
         $text = (
             "⚠️ <b>Переназначение обращения:</b>\n"
@@ -203,7 +212,7 @@ class ChatController extends Controller
             . "<b>Категория:</b> {$chat->ticket_type}\n"
             . "<b>Bot:</b> <code>{$bot?->username}</code>\n"
         );
-        $tgApi->sendMessage($bot?->token, (int) $tgChannelId, $text, $replyMarkup);
+        $tgApi->sendMessage($bot?->token, (int) $tgChannelId, $text, $replyMarkup ?? null);
 
         return response()->json(['status' => 200]);
     }

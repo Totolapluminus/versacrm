@@ -43,7 +43,7 @@ DOMAIN_TITLE_BY_KEY = {d["key"]: d["title"] for d in DOMAINS}
 DOMAIN_TITLES = set(DOMAIN_BY_TITLE.keys())
 
 CANCEL_TEXT = "❌ Отмена"
-NEW_TICKET_TEXT = "❌ Закрыть заявку"
+NEW_TICKET_TEXT = "❌ Завершить диалог"
 
 
 def generate_ticket_id() -> str:
@@ -318,6 +318,14 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
             return
         api_close_active_chat(bot_db_id, message.chat.id)
         reset_new_ticket(bot_db_id, message.from_user.id)
+
+        text = (
+            "👋 Это телеграм бот цифровой техподдержки Мелгу.\n"
+            "График работы: пн-пт с 8:30 до 16:45.\n"
+            "Выходные дни — в дежурном режиме."
+        )
+        bot.send_message(message.chat.id, text)
+
         ask_choose_domain(message)
 
     @bot.message_handler(commands=["myid"])
@@ -366,14 +374,35 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
         # если бот перезапустился и state пропал — выбрать категорию заново
         state = user_states.get(key)
         if state is None:
-            reset_new_ticket(bot_db_id, user_id)
-            bot.send_message(
-                message.chat.id,
-                "⚠️ Похоже, бот был перезапущен.\n"
-                "Пожалуйста, выберите сайт заново 👇",
-                reply_markup=build_domains_keyboard()
-            )
-            return
+            info = api_get_chat_status(bot_db_id, message.chat.id)
+
+            # если есть активная заявка — восстановим state и продолжим чат
+            if info and info.get("exists") and info.get("chat_status") in ("open", "in_progress"):
+                user_states[key] = UserState(
+                    step="chat",
+                    ticket_domain=info.get("ticket_domain"),
+                    category_key=info.get("ticket_type"),
+                    ticket_id=info.get("ticket_id"),
+                )
+
+                bot.send_message(
+                    message.chat.id,
+                    "⚠️ Похоже, бот был перезапущен.\n"
+                    f"✅ Ваша заявка была успешно восстановлена, сообщение отправлено, продолжайте общение. <b>{info.get('ticket_id')}</b>",
+                    reply_markup=build_chat_keyboard()
+                )
+                # дальше этот же on_text пойдёт по ветке step == "chat"
+                state = user_states[key]
+            else:
+                # активной заявки нет — начинаем новую
+                reset_new_ticket(bot_db_id, user_id)
+                bot.send_message(
+                    message.chat.id,
+                    "⚠️ Похоже, бот был перезапущен.\n"
+                    "Пожалуйста, выберите сайт заново 👇",
+                    reply_markup=build_domains_keyboard()
+                )
+                return
 
         # если категория/тикет_id пустые — перезапустить
         if not state.ticket_id:
@@ -449,7 +478,7 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
                 "✅ Заявка отправлена оператору.\n"
                 f"Номер: <b>{state.ticket_id}</b>\n"
                 "Можете продолжать переписку в этом чате.\n\n"
-                "Если нужна новая заявка или вопрос решен — нажмите «❌ Закрыть заявку».",
+                "Если нужна новая заявка или вопрос решен — нажмите «❌ Завершить диалог».",
                 reply_markup=build_chat_keyboard()
             )
             return
@@ -475,7 +504,7 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
                 if info and info.get("chat_status") == "closed":
                     bot.reply_to(
                         message,
-                        "Заявка закрыта. \nЕсли нужно — создайте новую, нажав «❌ Закрыть заявку» или /start."
+                        "Заявка закрыта. \nЕсли нужно — создайте новую, нажав «❌ Завершить диалог» или /start."
                     )
                     return
                 else: api_post_message(payload, label=label)
@@ -502,14 +531,33 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
 
         state = user_states.get(key)
         if state is None:
-            reset_new_ticket(bot_db_id, user_id)
-            bot.send_message(
-                message.chat.id,
-                "⚠️ Похоже, бот был перезапущен.\n"
-                "Пожалуйста, выберите сайт заново 👇",
-                reply_markup=build_domains_keyboard()
-            )
-            return
+            info = api_get_chat_status(bot_db_id, message.chat.id)
+
+            if info and info.get("exists") and info.get("chat_status") in ("open", "in_progress"):
+                state = UserState(
+                    step="chat",  # или "wait_text" — если разрешать фото как первое сообщение
+                    ticket_domain=info.get("ticket_domain"),
+                    category_key=info.get("ticket_type"),
+                    ticket_id=info.get("ticket_id"),
+                )
+                user_states[key] = state
+
+                bot.send_message(
+                    message.chat.id,
+                    "⚠️ Похоже, бот был перезапущен.\n"
+                    f"✅ Ваша заявка была успешно восстановлена, сообщение отправлено, продолжайте общение. <b>{state.ticket_id}</b>",
+                    reply_markup=build_chat_keyboard()
+                )
+                # ВАЖНО: тут НЕ return — продолжаем обработку вложения ниже
+            else:
+                reset_new_ticket(bot_db_id, user_id)
+                bot.send_message(
+                    message.chat.id,
+                    "⚠️ Похоже, бот был перезапущен.\n"
+                    "Пожалуйста, выберите сайт заново 👇",
+                    reply_markup=build_domains_keyboard()
+                )
+                return
 
         if not state.ticket_id:
             reset_new_ticket(bot_db_id, user_id)
@@ -572,7 +620,7 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
                 "✅ Заявка отправлена оператору.\n"
                 f"Номер: <b>{state.ticket_id}</b>\n"
                 "Можете продолжать переписку в этом чате.\n\n"
-                "Если нужна новая заявка или вопрос решен — нажмите «❌ Закрыть заявку».",
+                "Если нужна новая заявка или вопрос решен — нажмите «❌ Завершить диалог».",
                 reply_markup=build_chat_keyboard()
             )
             return
@@ -596,7 +644,7 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
                 if info and info.get("chat_status") == "closed":
                     bot.reply_to(
                         message,
-                        "Заявка закрыта.\nЕсли нужно — создайте новую, нажав «❌ Закрыть заявку» или /start."
+                        "Заявка закрыта.\nЕсли нужно — создайте новую, нажав «❌ Завершить диалог» или /start."
                     )
                     return
 

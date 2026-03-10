@@ -6,7 +6,7 @@ import axios from "axios";
 import {Link} from "@inertiajs/vue3";
 import {useNotificationStore} from '@/Stores/notificationStore'
 
-import {PaperAirplaneIcon} from "@heroicons/vue/24/solid/index.js";
+import {PaperAirplaneIcon, PaperClipIcon, XCircleIcon, XMarkIcon} from "@heroicons/vue/24/solid/index.js";
 import Attachment from "@/Components/Chat/Attachment.vue";
 
 const {props} = usePage()
@@ -21,6 +21,8 @@ const messages = ref(props.current_chat.telegram_messages ?? [])
 const chatStatus = ref(props.current_chat.status ?? 'none')
 const chatOperator = ref(props.current_chat.user_id ?? 'none')
 
+const fileInput = ref(null)
+const pickedFiles = ref([])
 const draft = ref('')
 const scrollEl = ref(null)
 
@@ -43,6 +45,47 @@ const notificationStore = useNotificationStore()
 onMounted(() => {
     if (user.role !== 'admin') notificationStore.clearChat(props.current_chat.id)
 })
+
+function onPickFiles(event) {
+    const files = event.target.files ? Array.from(event.target.files) : []
+    pickedFiles.value = files
+}
+
+function openFilePicker() {
+    fileInput.value.click()
+}
+
+function onPaste(e) {
+    const items = e.clipboardData?.items
+    if (!items) return
+
+    for (const item of items) {
+        if (item.type && item.type.startsWith('image/')) {
+            const blob = item.getAsFile()
+            if (!blob) continue
+
+            // превращаем в File (чтобы имя было нормальное)
+            const ext = blob.type.split('/')[1] || 'png'
+            const file = new File([blob], `paste-${Date.now()}.${ext}`, {type: blob.type})
+
+            pickedFiles.value.push(file)
+
+            // чтобы не вставлялся "пустой символ" в input
+            e.preventDefault()
+            break
+        }
+    }
+}
+function removeFile(index) {
+    if (index < 0 || index >= pickedFiles.value.length) return
+
+    pickedFiles.value.splice(index, 1)
+
+    // если удалили всё — сбросить input, чтобы можно было снова выбрать те же файлы
+    if (pickedFiles.value.length === 0 && fileInput.value) {
+        fileInput.value.value = ''
+    }
+}
 
 const scrollToBottom = () => {
     if (!scrollEl.value) return
@@ -126,41 +169,62 @@ onUnmounted(() => window.Echo.leave(`store-telegram-chat`))
 async function send() {
 
     const text = draft.value.trim()
-    if (!text) return
+    const files = pickedFiles.value
+
+    if (!text && files.length === 0) return
 
     // отображение сообщения на фронте заранее (временно)
     const tmpId = `tmp-${Date.now()}`
     const optimistic = {
         id: tmpId,
         direction: 'out',
-        text: text,
+        text: text || null,
         telegram_chat_db_id: currentChatDbId,
         telegram_chat_tg_id: currentChatTgId,
-        attachments_urls: [],
+        attachments_urls: files.length ? files.map(f => URL.createObjectURL(f)) : [],
     }
 
     messages.value.push(optimistic)
+
     draft.value = ''
+    pickedFiles.value = []
+    if (fileInput.value) fileInput.value.value = ''
 
     //отправка данных на бекенд
     try {
-        const response = await axios.post(`/api/chat/${currentChatDbId}`, {
-            direction: 'out',
-            text: text,
-            telegram_chat_db_id: currentChatDbId,
-            telegram_chat_tg_id: currentChatTgId,
-        })
+        const formData = new FormData()
+        formData.append('direction', 'out')
+        if (text) formData.append('text', text)
+        formData.append('telegram_chat_db_id', currentChatDbId)
+        formData.append('telegram_chat_tg_id', currentChatTgId)
+        for (const file of files) {
+            formData.append('attachments[]', file)
+        }
 
-        //замена временного сообщения серверным
+
+        const response = await axios.post(`/api/chat/${currentChatDbId}`, formData)
+
         const idx = messages.value.findIndex(m => m.id === tmpId)
-        if (idx !== -1) messages.value[idx] = response.data
+        if (idx !== -1) {
+            // ОЧИСТКА ПАМЯТИ
+            for (const url of (messages.value[idx].attachments_urls || [])) {
+                if (typeof url === 'string' && url.startsWith('blob:')) URL.revokeObjectURL(url)
+            }
+            messages.value[idx] = response.data
+        }
 
         chatStatus.value = 'in_progress'
 
     } catch (e) {
         //откат, если ошибка
         const idx = messages.value.findIndex(m => m.id === tmpId)
-        if (idx !== -1) messages.value.splice(idx, 1)
+        if (idx !== -1) {
+            //ОЧИСТКА ПАМЯТИ
+            for (const url of (messages.value[idx].attachments_urls || [])) {
+                if (typeof url === 'string' && url.startsWith('blob:')) URL.revokeObjectURL(url)
+            }
+            messages.value.splice(idx, 1)
+        }
         console.error('Не удалось отправить сообщение', e)
     }
 }
@@ -202,9 +266,10 @@ function moveChatStatus(chatId, newStatus) {
         }
     }
 }
+
 async function updateStatus() {
     try {
-        await axios.put(`/api/chat/${currentChatDbId}/status`, { status: chatStatus.value })
+        await axios.put(`/api/chat/${currentChatDbId}/status`, {status: chatStatus.value})
         moveChatStatus(currentChatDbId, chatStatus.value)
     } catch (e) {
         console.error('Ошибка при обновлении статуса', e)
@@ -265,34 +330,45 @@ const ticketDomainLabel = (key) => {
             <!-- слева список чатов (пока заглушка) -->
             <aside class="col-span-3 bg-white shadow-lg relative z-10 max-h-[calc(100vh-4rem)] overflow-y-auto">
                 <div v-for="bot in botsRef" :key="bot.id">
-                    <h2 class="bg-gray-50 shadow-sm py-1.5 pl-6" >Бот "{{ bot.username }}"</h2>
+                    <h2 class="bg-gray-50 shadow-sm py-1.5 pl-6">Бот "{{ bot.username }}"</h2>
                     <div class="my-3">
                         <div v-for="chat in bot.telegram_chats">
-                            <Link v-if="user.id === chat.user_id || user.role === 'admin'" :href="route('chat.show', chat.id)" :class="[
+                            <Link v-if="user.id === chat.user_id || user.role === 'admin'"
+                                  :href="route('chat.show', chat.id)" :class="[
                             'flex items-center gap-3 px-4 py-2',
                             chat.id === props.current_chat?.id ? 'bg-gray-50' : 'bg-white hover:bg-gray-50 transition duration-50'
                             ]">
 
-                                <div class="flex items-center justify-center h-10 w-10 rounded-full bg-red-700 text-gray-100 font-semibold text-2xl">
+                                <div
+                                    class="flex items-center justify-center h-10 w-10 rounded-full bg-red-700 text-gray-100 font-semibold text-2xl">
                                     {{ getInitials(chat) }}
                                 </div>
 
                                 <div class="flex flex-1 flex-col gap-2 truncate">
                                     <div class="flex justify-between items-center">
-                                        <span class="text-[13px] font-bold text-gray-800 truncate">{{ chat.telegram_user?.username || chat.telegram_user?.first_name }}, {{chat.ticket_id}}</span>
+                                        <span class="text-[13px] font-bold text-gray-800 truncate">{{
+                                                chat.telegram_user?.username || chat.telegram_user?.first_name
+                                            }}, {{ chat.ticket_id }}</span>
                                         <span class="text-[11px] text-gray-400">{{ chat.last_message_in_human }}</span>
                                     </div>
 
                                     <div class="flex justify-between items-center">
-                                        <span class="text-[13px] text-gray-400 truncate" >{{ chat.last_message_in_text }}</span>
+                                        <span class="text-[13px] text-gray-400 truncate">{{
+                                                chat.last_message_in_text
+                                            }}</span>
                                         <div class="flex items-center gap-1.5">
                                             <div class="flex items-center gap-0.5">
-                                                <span class="text-[10px] text-gray-400" >{{ ticketDomainLabel(chat.ticket_domain) }}</span>
-                                                <span class="text-[10px] text-gray-400" >|</span>
-                                                <span class="text-[10px] text-gray-400" >{{ ticketTypeLabel(chat.ticket_type) }}</span>
+                                                <span class="text-[10px] text-gray-400">{{
+                                                        ticketDomainLabel(chat.ticket_domain)
+                                                    }}</span>
+                                                <span class="text-[10px] text-gray-400">|</span>
+                                                <span class="text-[10px] text-gray-400">{{
+                                                        ticketTypeLabel(chat.ticket_type)
+                                                    }}</span>
                                             </div>
                                             <div class="flex items-center gap-0.5">
-                                                <div v-if="chat.status === 'open'" class="w-2 h-2 bg-blue-700 rounded-full"></div>
+                                                <div v-if="chat.status === 'open'"
+                                                     class="w-2 h-2 bg-blue-700 rounded-full"></div>
                                                 <div v-if="chat.has_new" class="w-2 h-2 bg-red-700 rounded-full"></div>
                                             </div>
                                         </div>
@@ -302,12 +378,13 @@ const ticketDomainLabel = (key) => {
                         </div>
                     </div>
                 </div>
-                <h2 class="bg-gray-50 shadow-sm py-1.5 pl-6" >Закрытые обращения</h2>
+                <h2 class="bg-gray-50 shadow-sm py-1.5 pl-6">Закрытые обращения</h2>
                 <div v-if="closedChats.length" class="my-3">
                     <div v-for="chat in closedChats" :key="'closed-' + chat.id" class="px-6 py-1">
-                        <Link :href="route('chat.show', chat.id)" class="flex justify-between text-sm text-gray-600 hover:text-gray-900">
+                        <Link :href="route('chat.show', chat.id)"
+                              class="flex justify-between text-sm text-gray-600 hover:text-gray-900">
                             <div>{{ chat.telegram_user?.username || chat.telegram_user?.first_name }}</div>
-                            <div>{{chat.last_message_in_human}}</div>
+                            <div>{{ chat.last_message_in_human }}</div>
                         </Link>
                     </div>
                 </div>
@@ -326,8 +403,15 @@ const ticketDomainLabel = (key) => {
             >
                 <div class="h-16 flex items-center bg-gray-50 border-b border-gray-100">
                     <div class="flex flex-col gap-0.5 px-6">
-                        <div class="text-md font-bold">{{ currentChat.telegram_user?.username || currentChat.telegram_user?.first_name }}, {{ currentChat.ticket_id }}</div>
-                        <div class="text-[13px] text-gray-500">{{lastMessageTime}}, {{ ticketDomainLabel(currentChat.ticket_domain) }} | {{ ticketTypeLabel(currentChat.ticket_type) }} | Создан: {{currentChat.created_at_formatted}}</div>
+                        <div class="text-md font-bold">
+                            {{ currentChat.telegram_user?.username || currentChat.telegram_user?.first_name }},
+                            {{ currentChat.ticket_id }}
+                        </div>
+                        <div class="text-[13px] text-gray-500">{{ lastMessageTime }},
+                            {{ ticketDomainLabel(currentChat.ticket_domain) }} |
+                            {{ ticketTypeLabel(currentChat.ticket_type) }} | Создан:
+                            {{ currentChat.created_at_formatted }}
+                        </div>
                     </div>
                 </div>
                 <!-- скроллируется только этот div -->
@@ -347,9 +431,13 @@ const ticketDomainLabel = (key) => {
                     ? 'bg-red-700 border border-red-600 text-white rounded-br-md'
                     : 'bg-gray-50 border border-gray-50 text-gray-900 rounded-bl-md'"
                         >
-                            <Attachment v-if="m.attachments_urls?.length" :src="m.attachments_urls[0]"></Attachment>
-                            <p v-if="m.text">{{ m.text}}</p>
-                            <!--                            <div class="mt-1 text-[11px] opacity-70 text-right">{{ m.time }}</div>-->
+                            <div v-if="m.attachments_urls?.length" class="grid gap-2 justify-items-center"
+                                 :class="m.attachments_urls.length === 1 ? 'grid-cols-1' : 'grid-cols-2'">
+                                <Attachment v-for="attachment_url in m.attachments_urls"
+                                            :src="attachment_url"></Attachment>
+                            </div>
+
+                            <p v-if="m.text">{{ m.text }}</p>
                             <div class="mt-1 opacity-70 text-[11px] text-right">{{ m.time_human }}</div>
                         </div>
                     </div>
@@ -357,27 +445,56 @@ const ticketDomainLabel = (key) => {
 
                 <form
                     @submit.prevent="send"
-                    class="p-3 flex gap-2 border-t"
+                    class="p-3 flex gap-2 border-t items-center max-h-[200px]"
                 >
-                    <input
+                    <textarea
                         v-model="draft"
+                        @paste="onPaste"
+                        rows="1"
                         type="text"
                         :disabled="chatStatus === 'closed' || (user.id !== currentChat.user_id && user.role !== 'admin')"
                         :placeholder="chatStatus === 'closed' || (user.id !== currentChat.user_id && user.role !== 'admin') ? 'ЗАЯВКА ЗАКРЫТА ИЛИ ПРИНАДЛЕЖИТ ДРУГОМУ ОПЕРАТОРУ' : 'Сообщение…'"
-                        class="flex-1 px-4 py-2 rounded-xl border-none focus:outline-none focus:ring-0 focus:ring-blue-200"
+                        class="flex-1 px-4 py-2 rounded-xl border-none focus:outline-none focus:ring-0 focus:ring-blue-200 text-sm resize-none"
+                    />
+                    <span v-if="pickedFiles.length" class="text-xs text-gray-500 max-w-[250px]">
+                        <div v-for="(file, i) in pickedFiles"
+                             :key="file.name + file.size + i"
+                             @click="removeFile(i)" class="cursor-pointer relative group"
+                        >
+                            <div class="truncate">{{ file.name }}</div>
+                            <XCircleIcon class="hidden absolute rounded-full size-5 text-red-400 -top-1.5 -right-2.5 group-hover:block"></XCircleIcon>
+                        </div>
+                    </span>
+                    <input
+                        ref="fileInput"
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        @change="onPickFiles"
+                        :disabled="chatStatus === 'closed' || (user.id !== currentChat.user_id && user.role !== 'admin')"
+                        class="hidden"
                     />
                     <button
-                        type="submit"
-                        class="px-4 py-2 rounded-xl bg-red-700 text-white hover:bg-red-800 transition duration-50"
+                        type="button"
+                        @click="openFilePicker"
+                        class="w-15 h-10 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition"
                         :disabled="chatStatus === 'closed' || (user.id !== currentChat.user_id && user.role !== 'admin')"
                     >
-                        <PaperAirplaneIcon class="text-white w-6 h-6"></PaperAirplaneIcon>
+                        <PaperClipIcon class="size-5 text-gray-700"/>
+                    </button>
+                    <button
+                        type="submit"
+                        class="w-15 h-10 px-4 py-2 rounded-xl bg-red-700 text-white hover:bg-red-800 transition duration-50"
+                        :disabled="chatStatus === 'closed' || (user.id !== currentChat.user_id && user.role !== 'admin')"
+                    >
+                        <PaperAirplaneIcon class="text-white size-5"></PaperAirplaneIcon>
                     </button>
                 </form>
             </section>
 
             <aside class="col-span-2 shadow-xl relative z-10">
-                <div v-if="user.id === currentChat.user_id || user.role === 'admin'" class="bg-white rounded-2xl shadow-md p-4 m-4 border border-gray-100 flex flex-col gap-4">
+                <div v-if="user.id === currentChat.user_id || user.role === 'admin'"
+                     class="bg-white rounded-2xl shadow-md p-4 m-4 border border-gray-100 flex flex-col gap-4">
                     <h3 class="font-semibold text-gray-700 mb-2">Опции чата</h3>
                     <div>
                         <label for="status" class="text-sm text-gray-600 mb-1 block">Статус:</label>
@@ -420,7 +537,9 @@ const ticketDomainLabel = (key) => {
                         Удалить чат
                     </button>
                 </div>
-                <div v-else class="px-3 py-6 text-center font-bold text-2xl">ЧАТ ПРИНАДЛЕЖИТ ДРУГОМУ ОПЕРАТОРУ<br><br> ОПЦИИ НЕДОСТПНЫ</div>
+                <div v-else class="px-3 py-6 text-center font-bold text-2xl">ЧАТ ПРИНАДЛЕЖИТ ДРУГОМУ ОПЕРАТОРУ<br><br>
+                    ОПЦИИ НЕДОСТПНЫ
+                </div>
             </aside>
 
 
