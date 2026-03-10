@@ -140,6 +140,9 @@
       <excludeFolder url="file://$MODULE_DIR$/src/vendor/psr/cache" />
       <excludeFolder url="file://$MODULE_DIR$/src/vendor/paragonie/sodium_compat" />
       <excludeFolder url="file://$MODULE_DIR$/src/vendor/pusher/pusher-php-server" />
+      <excludeFolder url="file://$MODULE_DIR$/src/vendor/fruitcake/laravel-debugbar" />
+      <excludeFolder url="file://$MODULE_DIR$/src/vendor/php-debugbar/php-debugbar" />
+      <excludeFolder url="file://$MODULE_DIR$/src/vendor/php-debugbar/symfony-bridge" />
     </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
