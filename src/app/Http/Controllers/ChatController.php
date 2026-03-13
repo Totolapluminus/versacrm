@@ -16,52 +16,23 @@ use Inertia\Inertia;
 
 class ChatController extends Controller
 {
-    public function index(){
+    public function index()
+    {
         $user = Auth::user();
-        $botsQuery = TelegramBot::query()->select('id', 'username');
-        if ($user->role !== 'admin') {
-            $botsQuery->whereHas('users', fn($q) => $q->whereKey($user->id));
-        }
-        $bots = $botsQuery->with([
+
+        $bots = TelegramBot::query()
+            ->select('id', 'username')
+            ->visibleToUser($user)
+            ->with([
                 'telegramChats' => function ($q) use ($user) {
-                    $q->select('id','telegram_bot_id','telegram_user_id', 'user_id', 'status', 'has_new', 'ticket_id', 'ticket_type', 'ticket_domain')
-                        ->addSelect([
-                            'last_message_in_text' => TelegramMessage::select('text')
-                                ->whereColumn('telegram_messages.telegram_chat_id', 'telegram_chats.id')
-                                ->orderByDesc('id')
-                                ->limit(1),
-
-                            // если нужен ещё и час/дата
-                            'last_message_in_at' => TelegramMessage::select('created_at')
-                                ->whereColumn('telegram_messages.telegram_chat_id', 'telegram_chats.id')
-                                ->orderByDesc('id')
-                                ->limit(1),
-                        ])
-                        ->with(['telegramUser:id,username,first_name']);
-
-                    if ($user->role !== 'admin') {
-                        $q->where('user_id', $user->id);
-                    }
+                    $q->visibleToUser($user)
+                        ->orderByLastMessage()
+                        ->with([
+                            'telegramUser:id,username,first_name',
+                            'lastMessage.attachments'
+                        ]);
                 },
-            ])
-            ->get();
-
-        $bots->each(function ($bot) {
-            $bot->setRelation('closedChats', $bot->telegramChats->where('status', 'closed')->values());
-            $bot->setRelation('telegramChats', $bot->telegramChats->where('status', '!=', 'closed')->values());
-        });
-
-        $bots->each(function ($bot) {
-            foreach (['telegramChats', 'closedChats'] as $rel) {
-                $bot->$rel->each(function ($chat) {
-                    $chat->last_message_in_time = $chat->last_message_in_at
-                        ? Carbon::parse($chat->last_message_in_at)
-                            ->timezone('Europe/Moscow')
-                            ->format('H:i')
-                        : null;
-                });
-            }
-        });
+            ])->get();
 
         return Inertia::render('Chat/Index', [
             'bots' => $bots,
@@ -69,68 +40,33 @@ class ChatController extends Controller
         ]);
     }
 
-    public function show(TelegramChat $chat){
-        $operators = User::where('role', 'operator')
-            ->select('id', 'name')
-            ->get();
-
+    public function show(TelegramChat $chat)
+    {
+        $operators = User::where('role', 'operator')->select('id', 'name')->get();
         $user = Auth::user();
-
         if ($chat->has_new && $user->role !== 'admin') {
             $chat->update(['has_new' => false]);
         }
 
-        $botsQuery = TelegramBot::query()->select('id', 'username');
-
-        if ($user->role !== 'admin') {
-            $botsQuery->whereHas('users', fn($q) => $q->whereKey($user->id));
-        }
-
-        $bots = $botsQuery->with([
-            'telegramChats' => function ($q) use ($user) {
-                $q->select('id','telegram_bot_id','telegram_user_id', 'user_id', 'status', 'has_new', 'ticket_id', 'ticket_type', 'ticket_domain')
-                    ->addSelect([
-                        'last_message_in_text' => TelegramMessage::select('text')
-                            ->whereColumn('telegram_messages.telegram_chat_id', 'telegram_chats.id')
-                            ->orderByDesc('id')
-                            ->limit(1),
-
-                        'last_message_in_at' => TelegramMessage::select('created_at')
-                            ->whereColumn('telegram_messages.telegram_chat_id', 'telegram_chats.id')
-                            ->orderByDesc('id')
-                            ->limit(1),
-                    ])
-                    ->with(['telegramUser:id,username,first_name']);
-
-                if ($user->role !== 'admin') {
-                    $q->where('user_id', $user->id);
-                }
-            },
-        ])->get();
-
-        $bots->each(function ($bot) {
-            $bot->setRelation('closedChats', $bot->telegramChats->where('status', 'closed')->values());
-            $bot->setRelation('telegramChats', $bot->telegramChats->where('status', '!=', 'closed')->values());
-        });
-
-        $bots->each(function ($bot) {
-            foreach (['telegramChats', 'closedChats'] as $rel) {
-                $bot->$rel->each(function ($chat) {
-                    $chat->last_message_in_time = $chat->last_message_in_at
-                        ? Carbon::parse($chat->last_message_in_at)
-                            ->timezone('Europe/Moscow')
-                            ->format('H:i')
-                        : null;
-                });
-            }
-        });
+        $bots = TelegramBot::query()
+            ->select('id', 'username')
+            ->visibleToUser($user)
+            ->with([
+                'telegramChats' => function ($q) use ($user) {
+                    $q->visibleToUser($user)
+                        ->orderByLastMessage()
+                        ->with([
+                            'telegramUser:id,username,first_name',
+                            'lastMessage.attachments'
+                        ]);
+                },
+            ])->get();
 
         $chat->load([
             'telegramMessages.attachments',
             'telegramUser:id,username,first_name',
         ]);
 
-        $chat->created_at_formatted = $chat->created_at?->timezone('Europe/Moscow')->format('d.m.Y H:i');
 
         return Inertia::render('Chat/Show', [
             'operators' => $operators,

@@ -23,6 +23,8 @@ class StoreTelegramChatEvent implements ShouldBroadcast
      */
     public function __construct(TelegramChat $telegramChat)
     {
+        $telegramChat->load('telegramUser', 'lastMessage');
+
         $this->chatPayload = [
             'id' => $telegramChat->id,
             'telegram_user' => [
@@ -38,8 +40,10 @@ class StoreTelegramChatEvent implements ShouldBroadcast
             'ticket_id' => $telegramChat->ticket_id,
             'ticket_type' => $telegramChat->ticket_type,
             'ticket_domain' => $telegramChat->ticket_domain,
-            'last_message_in_text' => $telegramChat->last_message_in_text,
-            'last_message_in_at' => $telegramChat->last_message_in_at,
+            'last_message' => [
+                'text' => $telegramChat->lastMessage->text,
+                'created_at' => $telegramChat->lastMessage->created_at,
+            ],
             'last_message_in_human' => $telegramChat->last_message_in_human,
         ];
 

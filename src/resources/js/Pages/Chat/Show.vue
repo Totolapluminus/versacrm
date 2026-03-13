@@ -6,13 +6,12 @@ import axios from "axios";
 import {Link} from "@inertiajs/vue3";
 import {useNotificationStore} from '@/Stores/notificationStore'
 
-import {PaperAirplaneIcon, PaperClipIcon, XCircleIcon, XMarkIcon} from "@heroicons/vue/24/solid/index.js";
+import {PaperAirplaneIcon, PaperClipIcon, XCircleIcon} from "@heroicons/vue/24/solid/index.js";
 import Attachment from "@/Components/Chat/Attachment.vue";
 
 const {props} = usePage()
 const user = props.user ?? 'none'
 const operators = props.operators ?? []
-const bots = ref(props.bots ?? [])
 const currentChat = ref(props.current_chat ?? [])
 const currentChatDbId = props.current_chat.id ?? []
 const currentChatTgId = props.current_chat.chat_id ?? []
@@ -28,7 +27,7 @@ const scrollEl = ref(null)
 
 const botsRef = ref(structuredClone(toRaw(props.bots)))
 const closedChats = computed(() =>
-    botsRef.value.flatMap(b => b.closed_chats ?? [])
+    botsRef.value.flatMap(bot => bot.telegram_chats ?? []).filter(chat => chat.status === 'closed')
 )
 
 const lastMessage = computed(() => {
@@ -46,9 +45,15 @@ onMounted(() => {
     if (user.role !== 'admin') notificationStore.clearChat(props.current_chat.id)
 })
 
-function onPickFiles(event) {
-    const files = event.target.files ? Array.from(event.target.files) : []
-    pickedFiles.value = files
+function onDraftKeydown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        send()
+    }
+}
+
+function onPickFiles(e) {
+    pickedFiles.value = e.target.files ? Array.from(e.target.files) : []
 }
 
 function openFilePicker() {
@@ -67,7 +72,6 @@ function onPaste(e) {
             // превращаем в File (чтобы имя было нормальное)
             const ext = blob.type.split('/')[1] || 'png'
             const file = new File([blob], `paste-${Date.now()}.${ext}`, {type: blob.type})
-
             pickedFiles.value.push(file)
 
             // чтобы не вставлялся "пустой символ" в input
@@ -76,6 +80,7 @@ function onPaste(e) {
         }
     }
 }
+
 function removeFile(index) {
     if (index < 0 || index >= pickedFiles.value.length) return
 
@@ -93,24 +98,22 @@ const scrollToBottom = () => {
 }
 
 
-watch(messages, async () => {
-    await nextTick();
-    scrollToBottom()
-})
+watch(
+    () => messages.value.length,
+    async () => {
+        await nextTick()
+        scrollToBottom()
+    }
+)
 
 onMounted(() => scrollToBottom())
 
 onMounted(() => {
     window.Echo.private(`store-telegram-message-to-chat-${currentChatDbId}`)
         .listen('.store-telegram-message-to-chat', res => {
-
-            console.log(res)
-            console.log(messages.value)
-            console.log('A1', res.telegramMessage?.attachments_urls)
-            console.log('A2', res.telegramMessage?.telegramMessage?.attachments_urls)
-
             const msg = res.telegramMessage?.telegramMessage ?? res.telegramMessage
             messages.value.push(msg)
+
         })
 })
 onMounted(() => {
@@ -121,45 +124,21 @@ onMounted(() => {
             if (!bot) return
 
             bot.telegram_chats = bot.telegram_chats ?? []
-            bot.closed_chats = bot.closed_chats ?? []
-
-            const open = bot.telegram_chats
-            const closed = bot.closed_chats
-
-            const openIdx = open.findIndex(c => c.id === chat.id)
-            const closedIdx = closed.findIndex(c => c.id === chat.id)
-
-            let target = null
-
-            if (openIdx !== -1) {
-                target = open[openIdx]
-            }
-            if (!target && closedIdx !== -1) {
-                target = closed[closedIdx]
-            }
-
-            if (target && chat.status && target.status !== chat.status) {
-                moveChatStatus(chat.id, chat.status)
-
-                const newOpenIdx = open.findIndex(c => c.id === chat.id)
-                const newClosedIdx = closed.findIndex(c => c.id === chat.id)
-                target = newOpenIdx !== -1 ? open[newOpenIdx] : (newClosedIdx !== -1 ? closed[newClosedIdx] : target)
-            }
+            const found = bot.telegram_chats.find(c => c.id === chat.id)
 
             if (chat.id === currentChatDbId && chat.status) {
                 chatStatus.value = chat.status
             }
-
-            if (target) {
-                Object.assign(target, chat)
+            if (found) {
+                found.has_new = chat.has_new
+                found.status = chat.status
+                found.last_message_in_human = chat.last_message_in_human
+                found.last_message = chat.last_message
                 return
             }
 
-            if (chat.status === 'closed') {
-                closed.unshift(chat)
-            } else {
-                open.unshift(chat)
-            }
+            bot.telegram_chats.unshift(chat)
+
         })
 })
 onUnmounted(() => window.Echo.leave(`store-telegram-message-to-chat-${currentChatDbId}`))
@@ -242,26 +221,10 @@ async function updateOperator() {
 
 function moveChatStatus(chatId, newStatus) {
     for (const bot of botsRef.value) {
-        const open = bot.telegram_chats ?? []
-        const closed = bot.closed_chats ?? (bot.closed_chats = [])
+        const chat = (bot.telegram_chats ?? []).find(c => c.id === chatId)
 
-        // если чат был в открытых
-        let idx = open.findIndex(c => c.id === chatId)
-        if (idx !== -1) {
-            const chat = open.splice(idx, 1)[0]
+        if (chat) {
             chat.status = newStatus
-            if (newStatus === 'closed') closed.unshift(chat)
-            else open.unshift(chat)
-            return
-        }
-
-        // если чат был в закрытых
-        idx = closed.findIndex(c => c.id === chatId)
-        if (idx !== -1) {
-            const chat = closed.splice(idx, 1)[0]
-            chat.status = newStatus
-            if (newStatus === 'closed') closed.unshift(chat)
-            else open.unshift(chat)
             return
         }
     }
@@ -332,39 +295,34 @@ const ticketDomainLabel = (key) => {
                 <div v-for="bot in botsRef" :key="bot.id">
                     <h2 class="bg-gray-50 shadow-sm py-1.5 pl-6">Бот "{{ bot.username }}"</h2>
                     <div class="my-3">
-                        <div v-for="chat in bot.telegram_chats">
-                            <Link v-if="user.id === chat.user_id || user.role === 'admin'"
-                                  :href="route('chat.show', chat.id)" :class="[
-                            'flex items-center gap-3 px-4 py-2',
-                            chat.id === props.current_chat?.id ? 'bg-gray-50' : 'bg-white hover:bg-gray-50 transition duration-50'
-                            ]">
+                        <div v-for="chat in bot.telegram_chats.filter(chat => chat.status !== 'closed')" :key="chat.id">
+                            <Link
+                                :href="route('chat.show', chat.id)"
+                                :class="[
+                                    'flex items-center gap-3 px-4 py-2',
+                                    chat.id === props.current_chat?.id
+                                        ? 'bg-gray-50'
+                                        : 'bg-white hover:bg-gray-50 transition duration-50'
+                                ]"
+                            >
 
-                                <div
-                                    class="flex items-center justify-center h-10 w-10 rounded-full bg-red-700 text-gray-100 font-semibold text-2xl">
+                                <div class="flex items-center justify-center h-10 w-10 rounded-full bg-red-700 text-gray-100 font-semibold text-2xl">
                                     {{ getInitials(chat) }}
                                 </div>
 
                                 <div class="flex flex-1 flex-col gap-2 truncate">
                                     <div class="flex justify-between items-center">
-                                        <span class="text-[13px] font-bold text-gray-800 truncate">{{
-                                                chat.telegram_user?.username || chat.telegram_user?.first_name
-                                            }}, {{ chat.ticket_id }}</span>
+                                        <span class="text-[13px] font-bold text-gray-800 truncate">{{chat.telegram_user?.username || chat.telegram_user?.first_name }}, {{ chat.ticket_id }}</span>
                                         <span class="text-[11px] text-gray-400">{{ chat.last_message_in_human }}</span>
                                     </div>
 
                                     <div class="flex justify-between items-center">
-                                        <span class="text-[13px] text-gray-400 truncate">{{
-                                                chat.last_message_in_text
-                                            }}</span>
+                                        <span class="text-[13px] text-gray-400 truncate">{{chat.last_message.text }}</span>
                                         <div class="flex items-center gap-1.5">
                                             <div class="flex items-center gap-0.5">
-                                                <span class="text-[10px] text-gray-400">{{
-                                                        ticketDomainLabel(chat.ticket_domain)
-                                                    }}</span>
+                                                <span class="text-[10px] text-gray-400">{{ticketDomainLabel(chat.ticket_domain) }}</span>
                                                 <span class="text-[10px] text-gray-400">|</span>
-                                                <span class="text-[10px] text-gray-400">{{
-                                                        ticketTypeLabel(chat.ticket_type)
-                                                    }}</span>
+                                                <span class="text-[10px] text-gray-400">{{ticketTypeLabel(chat.ticket_type) }}</span>
                                             </div>
                                             <div class="flex items-center gap-0.5">
                                                 <div v-if="chat.status === 'open'"
@@ -450,21 +408,23 @@ const ticketDomainLabel = (key) => {
                     <textarea
                         v-model="draft"
                         @paste="onPaste"
+                        @keydown="onDraftKeydown"
                         rows="1"
                         type="text"
                         :disabled="chatStatus === 'closed' || (user.id !== currentChat.user_id && user.role !== 'admin')"
                         :placeholder="chatStatus === 'closed' || (user.id !== currentChat.user_id && user.role !== 'admin') ? 'ЗАЯВКА ЗАКРЫТА ИЛИ ПРИНАДЛЕЖИТ ДРУГОМУ ОПЕРАТОРУ' : 'Сообщение…'"
                         class="flex-1 px-4 py-2 rounded-xl border-none focus:outline-none focus:ring-0 focus:ring-blue-200 text-sm resize-none"
                     />
-                    <span v-if="pickedFiles.length" class="text-xs text-gray-500 max-w-[250px]">
+                    <div v-if="pickedFiles.length" class="text-xs text-gray-500 max-w-[250px]">
                         <div v-for="(file, i) in pickedFiles"
                              :key="file.name + file.size + i"
                              @click="removeFile(i)" class="cursor-pointer relative group"
                         >
                             <div class="truncate">{{ file.name }}</div>
-                            <XCircleIcon class="hidden absolute rounded-full size-5 text-red-400 -top-1.5 -right-2.5 group-hover:block"></XCircleIcon>
+                            <XCircleIcon
+                                class="hidden absolute rounded-full size-5 text-red-400 -top-1.5 -right-2.5 group-hover:block"></XCircleIcon>
                         </div>
-                    </span>
+                    </div>
                     <input
                         ref="fileInput"
                         type="file"

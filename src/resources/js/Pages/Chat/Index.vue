@@ -3,19 +3,17 @@ import {ref, onMounted, onUnmounted, toRaw, computed} from 'vue'
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import {usePage} from "@inertiajs/vue3";
 import {Link} from "@inertiajs/vue3";
-import telegramIcon from "@/Images/telegram.png";
 
 
 const {props} = usePage()
 const user = props.user ?? 'none'
-const bots = ref(props.bots ?? [])
 
 const draft = ref('')
 const scrollEl = ref(null)
 
 const botsRef = ref(structuredClone(toRaw(props.bots)))
 const closedChats = computed(() =>
-    botsRef.value.flatMap(b => b.closed_chats ?? [])
+    botsRef.value.flatMap(bot => bot.telegram_chats ?? []).filter(chat => chat.status === 'closed')
 )
 
 const scrollToBottom = () => {
@@ -34,10 +32,18 @@ onMounted(() => {
             if (!bot) return
 
             const found = bot.telegram_chats.find(c => c.id === chat.id)
+
             if (found) {
-                found.has_new = chat.has_new
-                found.last_message_in_text = chat.last_message_in_text
-                found.last_message_in_human = chat.last_message_in_human
+                bot.telegram_chats = bot.telegram_chats ?? []
+                const found = bot.telegram_chats.find(c => c.id === chat.id)
+                if (found) {
+                    found.has_new = chat.has_new
+                    found.status = chat.status
+                    found.last_message = chat.last_message
+                    found.last_message_in_human = chat.last_message_in_human
+                    return
+                }
+                bot.telegram_chats.push(chat)
                 console.log(found)
                 return
             }
@@ -93,7 +99,7 @@ const ticketDomainLabel = (key) => {
                 <div v-for="bot in botsRef" :key="bot.id" class="">
                     <h2 class="bg-gray-50 shadow-sm py-1.5 pl-6" >Бот "{{ bot.username }}"</h2>
                     <div class="my-3">
-                        <div v-for="chat in bot.telegram_chats">
+                        <div v-for="chat in bot.telegram_chats.filter(chat => chat.status !== 'closed')" :key="chat.id">
 
                             <Link v-if="user.id === chat.user_id || user.role === 'admin' " :href="route('chat.show', chat.id)"
                                   class="flex items-center gap-3 py-2 px-4 bg-white hover:bg-gray-50 transition duration-50">
@@ -109,7 +115,7 @@ const ticketDomainLabel = (key) => {
                                     </div>
 
                                     <div class="flex justify-between items-center">
-                                        <span class="text-[13px] text-gray-400 truncate" >{{ chat.last_message_in_text }}</span>
+                                        <span class="text-[13px] text-gray-400 truncate" >{{ chat.last_message.text }}</span>
                                         <div class="flex items-center gap-1.5">
                                             <div class="flex items-center gap-0.5">
                                                 <span class="text-[10px] text-gray-400" >{{ ticketDomainLabel(chat.ticket_domain) }}</span>

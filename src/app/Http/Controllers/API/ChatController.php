@@ -16,99 +16,6 @@ class ChatController extends Controller
 {
     use AuthorizesRequests;
 
-    public function updateStatus(Request $request, TelegramChat $chat, TelegramApiService $tgApi){
-
-        //ДОБАВИТЬ ОТДЕЛЬНЫЙ UPDATE REQUEST
-
-        $this->authorize('view', $chat);
-
-        $data = $request->validate([
-            'status' => 'required|in:open,in_progress,closed'
-        ]);
-
-        $oldStatus = $chat->status;
-        $newStatus = $data['status'];
-
-        $chat->update(['status' => $newStatus]);
-
-        if ($oldStatus !== 'closed' && $newStatus === 'closed'){
-            try {
-                $bot = $chat->telegramBot;
-                $text = "Заявка закрыта. \nЕсли нужно — создайте новую, нажав кнопку или написав /start.";
-                $tgApi->sendMessage($bot?->token, (int)$chat->chat_id, $text);
-
-                $tgChannelId = config('myapp.support_chat_id');
-                $tgText = (
-                    "✅ <b>Заявка закрыта ОПЕРАТОРОМ: </b>\n"
-                    . "<b>Номер:</b> <b>{$chat->ticket_id}</b>\n"
-                    . "<b>Категория:</b> {$chat->ticket_type}\n"
-                    . "<b>Оператор:</b> {$chat->user->name}\n"
-                );
-                $tgApi->sendMessage($bot?->token, (int)$tgChannelId, $tgText);
-
-            } catch (\Exception $e) {
-                Log::error('Сообщение о закрытии чата не было отправлено в бот', [
-                    'chat_id' => $chat->id,
-                    'telegram_chat_id' => $chat->chat_id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-        }
-        return response()->json(['status' => 'ok']);
-    }
-
-    public function updateOperator(Request $request, TelegramChat $chat, TelegramApiService $tgApi)
-    {
-        $this->authorize('view', $chat);
-
-        $request->validate([
-            'user_id' => 'required|exists:users,id',
-        ]);
-
-        $oldOperatorName = $chat->user->name;
-        $operator = User::where('id', $request->user_id)
-            ->where('role', 'operator')
-            ->firstOrFail();
-        $newOperatorName = $operator->name;
-
-        $chat->update([
-            'user_id' => $operator->id,
-        ]);
-
-        $bot = $chat->telegramBot;
-
-        $chatUrl = route('chat.show', ['chat' => $chat->id]);
-
-        if(config('app.env') === 'product') {
-            $replyMarkup = [
-                'inline_keyboard' => [
-                    [
-                        [
-                            'text' => 'Открыть чат',
-                            'url' => $chatUrl
-                        ]
-                    ]
-                ]
-            ];
-        }
-
-
-        $tgChannelId = config('myapp.support_chat_id');
-
-        $text = (
-            "⚠️ <b>Переназначение обращения: </b>\n"
-            . "<b>От:</b> <b> {$oldOperatorName}</b>\n"
-            . "<b>Кому:</b> {$newOperatorName}\n"
-            . "<b>Номер:</b> <b>{$chat->ticket_id}</b>\n"
-            . "<b>Категория:</b> {$chat->ticket_type}\n"
-            . "<b>Bot:</b> {$bot->username}\n"
-        );
-
-        $tgApi->sendMessage($bot?->token, (int)$tgChannelId, $text, $replyMarkup ?? null);
-
-        return response()->json(['status' => 'ok']);
-    }
-
     public function getStatus(Request $request){
         $data = $request->validate([
             'telegram_bot_id' => 'required|exists:telegram_bots,id',
@@ -129,6 +36,48 @@ class ChatController extends Controller
             'ticket_type' => $chat?->ticket_type ?? null,
             'ticket_domain' => $chat?->ticket_domain ?? null,
         ]);
+
+    }
+
+    public function updateStatus(Request $request, TelegramChat $chat, TelegramApiService $tgApi){             //ДОБАВИТЬ ОТДЕЛЬНЫЙ UPDATE REQUEST
+        $this->authorize('view', $chat);
+        $data = $request->validate([
+            'status' => 'required|in:open,in_progress,closed'
+        ]);
+
+        $oldStatus = $chat->status;
+        $newStatus = $data['status'];
+        $chat->update(['status' => $newStatus]);
+
+        if ($oldStatus !== 'closed' && $newStatus === 'closed'){
+            $bot = $chat->telegramBot;
+            $text = "Заявка закрыта. \nЕсли нужно — создайте новую, нажав кнопку или написав /start.";
+            $tgApi->sendChatMessageText($bot?->token, (int)$chat->chat_id, $text);
+            $tgApi->sendChannelMessageClosedTicketByOperatorNotification($chat);
+        }
+
+        return response()->json(['status' => 'ok']);
+
+    }
+
+    public function updateOperator(Request $request, TelegramChat $chat, TelegramApiService $tgApi)
+    {
+        $this->authorize('view', $chat);
+        $request->validate([
+            'user_id' => 'required|exists:users,id',
+        ]);
+
+        $oldOperatorName = $chat->user->name;
+        $operator = User::where('id', $request->user_id)->where('role', 'operator')->firstOrFail();
+        $newOperatorName = $operator->name;
+
+        $chat->update([
+            'user_id' => $operator->id,
+        ]);
+
+        $tgApi->sendChannelMessageReassignedTicketNotification($chat, $oldOperatorName, $newOperatorName);
+        return response()->json(['status' => 'ok']);
+
     }
 
     public function closeChat(Request $request, TelegramApiService $tgApi){
@@ -147,24 +96,16 @@ class ChatController extends Controller
         if (!$chat) {
             return response()->json(['status' => 'ok', 'closed' => false]);
         }
-
         $chat->update(['status' => 'closed']);
 
-        $bot = $chat->telegramBot;
-        $tgChannelId = config('myapp.support_chat_id');
-        $text = (
-            "✅ <b>Заявка закрыта ПОЛЬЗОВАТЕЛЕМ: </b>\n"
-            . "<b>Номер:</b> <b>{$chat->ticket_id}</b>\n"
-            . "<b>Категория:</b> {$chat->ticket_type}\n"
-        );
-
-        $tgApi->sendMessage($bot?->token, (int)$tgChannelId, $text);
+        $tgApi->sendChannelMessageClosedTicketByTelegramUserNotification($chat);
         event(new StoreTelegramChatEvent($chat));
+
         return response()->json(['status' => 'ok', 'closed' => true, 'chat_db_id' => $chat->id]);
+
     }
 
     public function takeChat(Request $request, TelegramApiService $tgApi) {
-
         $data = $request->validate([
             'chat_id' => 'required|exists:telegram_chats,id',
             'operator_tg_id' => 'required|exists:users,telegram_id'
@@ -176,14 +117,13 @@ class ChatController extends Controller
         $oldOperatorName = null;
         $newOperatorName = $user->name;
 
-        $chat = DB::transaction(function () use ($data, $user) {  //Сохраняем в переменную то что вернет метод
+        $chat = DB::transaction(function () use ($data, $user, &$oldOperatorName) {  //Сохраняем в переменную то что вернет метод
            $chat = TelegramChat::whereKey($data['chat_id'])->lockForUpdate()->firstOrFail();  //Это другая переменная
             if ($chat->status === 'closed') {
                 abort(410, 'Заявка уже закрыта');
             }
 
             $oldOperatorName = $chat->user->name;
-
             $chat->update([
                 'user_id' => $user->id,
                 'status' => 'in_progress',
@@ -192,35 +132,14 @@ class ChatController extends Controller
             return $chat->fresh(['user', 'telegramBot']);
         });
 
-        $bot = $chat->telegramBot;
-        $chatUrl = route('chat.show', ['chat' => $chat->id]);
-        if(config('app.env') === 'product') {
-            $replyMarkup = [
-                'inline_keyboard' => [
-                    [
-                        ['text' => 'Открыть чат', 'url' => $chatUrl],
-                    ],
-                ],
-            ];
-        }
-        $tgChannelId = config('myapp.support_chat_id');
-        $text = (
-            "⚠️ <b>Переназначение обращения:</b>\n"
-            . "<b>От:</b> <b>{$oldOperatorName}</b>\n"
-            . "<b>Кому:</b> <b>{$newOperatorName}</b>\n"
-            . "<b>Номер:</b> <b>{$chat->ticket_id}</b>\n"
-            . "<b>Категория:</b> {$chat->ticket_type}\n"
-            . "<b>Bot:</b> <code>{$bot?->username}</code>\n"
-        );
-        $tgApi->sendMessage($bot?->token, (int) $tgChannelId, $text, $replyMarkup ?? null);
-
+        $tgApi->sendChannelMessageReassignedTicketNotification($chat, $oldOperatorName, $newOperatorName);
         return response()->json(['status' => 200]);
+
     }
 
     public function destroy(TelegramChat $chat)
     {
         $this->authorize('view', $chat);
-
         abort_unless($chat->status === 'closed', 422, 'Можно удалить только закрытый чат.');
 
         DB::transaction(function () use ($chat) {
@@ -236,5 +155,4 @@ class ChatController extends Controller
 
         return response()->json(['status' => 'ok']);
     }
-
 }

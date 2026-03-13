@@ -6,6 +6,7 @@ use App\Models\TelegramBot;
 use App\Models\TelegramChat;
 use App\Models\TelegramMessage;
 use App\Models\User;
+use App\Services\DashboardDataService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,12 +15,10 @@ use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, DashboardDataService $dashboardDataService)
     {
         $user = Auth::user();
-
-        // Для админа можно выбрать оператора
-        $operatorId = $request->get('operator_id');
+        $operatorId = $request->get('operator_id');  //ID который приходит при выборе конкретного оператора в выпадающем списке
 
         if ($user->role === 'operator') {
             $targetUser = $user;
@@ -29,115 +28,44 @@ class DashboardController extends Controller
             $targetUser = null;
         }
 
-        $chatQuery = TelegramChat::query();
-        $messageQuery = TelegramMessage::query();
-        $botQuery = TelegramBot::query();
-
-        if ($targetUser) {
-            $botIds = $targetUser->telegramBots()->pluck('telegram_bots.id');
-            $chatIds = $targetUser->telegramChats()->pluck('telegram_chats.id');
-
-            $chatQuery->whereIn('id', $chatIds);
-            $messageQuery->whereIn('telegram_chat_id', $chatIds);
-            $botQuery->whereIn('id', $botIds);
+        // Селект админа
+        $operators = [];
+        if ($user->role === 'admin') {
+            $operators = User::where('role', 'operator')->select('id', 'name')->orderBy('name')->get();
         }
 
-        // Статистика
+        $newTickets = TelegramChat::visibleToUser($targetUser)->where('status', 'open')->count();
+        $activeTickets = TelegramChat::visibleToUser($targetUser)->where('status', 'in_progress')->count();
+        $closedTickets = TelegramChat::visibleToUser($targetUser)->where('status', 'closed')->count();
+        $totalBots = TelegramBot::visibleToUser($targetUser)->count();
+        $totalMessages = TelegramMessage::whereHas('telegramChat', fn($query) => $query->visibleToUser($targetUser))->count();
+        $mostLoadedBot = TelegramBot::visibleToUser($targetUser)
+            ->withCount(['telegramChats as visible_telegram_chats_count' => fn($query) => $query->visibleToUser($targetUser)])
+            ->orderBy('visible_telegram_chats_count', 'desc')
+            ->value('username');
 
-        $newTickets = (clone $chatQuery)->where('status', 'open')->count();
-        $activeTickets = (clone $chatQuery)->where('status', 'in_progress')->count();
-        $closedTickets = (clone $chatQuery)->where('status', 'closed')->count();
-        $totalBots = (clone $botQuery)->count();
-        $totalMessages = (clone $messageQuery)->count();
-        $mostLoadedBot = (clone $botQuery)->withCount('telegramChats')
-            ->orderByDesc('telegram_chats_count')
-            ->pluck('username')
-            ->first();
+        $chats = TelegramChat::visibleToUser($targetUser)->with(['firstMessageIn', 'firstMessageOut'])->get();
+        $avgResponseTime = $dashboardDataService->ticketAvgResponseTime($chats);
 
+        $closedChats = TelegramChat::visibleToUser($targetUser)->where('status', 'closed')->get();
+        $avgCloseTime = $dashboardDataService->ticketAvgCloseTime($closedChats);
 
-        $chats = (clone $chatQuery)->get();
-        $responseTimes = [];
-        foreach ($chats as $chat) {
+        $rows = TelegramMessage::whereHas('telegramChat', fn($query) => $query->visibleToUser($targetUser))->selectRaw('DATE(created_at) as day, COUNT(*) as cnt')->groupBy('day')->orderBy('day')->get();
+        $chartByDayData = $dashboardDataService->chartByDayData($rows);
 
-            $firstIn = (clone $messageQuery)
-                ->where('telegram_chat_id', $chat->id)
-                ->where('direction', 'in')
-                ->orderBy('created_at')
-                ->first();
-
-            $firstOut = (clone $messageQuery)
-                ->where('telegram_chat_id', $chat->id)
-                ->where('direction', 'out')
-                ->orderBy('created_at')
-                ->first();
-
-            if ($firstIn && $firstOut) {
-                $seconds = abs($firstOut->created_at->diffInSeconds($firstIn->created_at));
-                $responseTimes[] = $seconds;
-            }
-        }
-        $avgResponseTime = count($responseTimes) ? round(array_sum($responseTimes) / count($responseTimes)) : 0;
-
-        $closedChats = (clone $chatQuery)->where('status', 'closed')->get();
-        $closeTimes = [];
-        foreach ($closedChats as $chat) {
-            if ($chat->created_at && $chat->updated_at) {
-                $diff = abs($chat->updated_at->diffInSeconds($chat->created_at, false));
-                $closeTimes[] = $diff;
-            }
-        }
-        $avgCloseTime = count($closeTimes) ? round(array_sum($closeTimes) / count($closeTimes)) : 0;
-
+        $weeklyRows = TelegramChat::visibleToUser($targetUser)->selectRaw("DATE_TRUNC('week', created_at) as week, COUNT(*) as cnt")->groupBy('week')->orderBy('week')->get();
+        $chartByWeekData = $dashboardDataService->chartByWeekData($weeklyRows);
 
         $kpis = compact('newTickets', 'activeTickets', 'closedTickets', 'totalBots',
             'totalMessages', 'avgResponseTime', 'mostLoadedBot', 'avgCloseTime');
-
-        // ГРАФИК ПО ДНЯМ
-        $rows = (clone $messageQuery)->selectRaw('DATE(created_at) as day, COUNT(*) as cnt')
-            ->groupBy('day')
-            ->orderBy('day')
-            ->get();
-        $labels = $rows->pluck('day');
-        $series = [[
-            'label' => 'Сообщения за день',
-            'data' => $rows->pluck('cnt'),
-        ]];
-
-
-        // ГРАФИК ПО НЕДЕЛЯМ
-        $weeklyRows = (clone $chatQuery)->selectRaw("DATE_TRUNC('week', created_at) as week, COUNT(*) as cnt")
-            ->groupBy('week')
-            ->orderBy('week')
-            ->get();
-        $weeklyLabels = $weeklyRows->pluck('week')->map(fn($d) => Carbon::parse($d)->format('Y-m-d'));
-        $weeklySeries = $weeklyRows->pluck('cnt');
-
-
-        // СЕЛЕКТ АДМИНА
-        $operators = [];
-        if ($user->role === 'admin') {
-            $operators = User::where('role', 'operator')
-                ->select('id', 'name')
-                ->orderBy('name')
-                ->get();
-        }
 
         return Inertia::render('Dashboard', [
             'user' => $user,
             'operators' => $operators,
             'selectedOperatorId' => $operatorId,
             'kpis' => $kpis,
-            'chart' => [
-                'labels' => $labels,
-                'series' => $series,
-            ],
-            'weeklyChart' => [
-                'labels' => $weeklyLabels,
-                'series' => [[
-                    'label' => 'Обращения за неделю',
-                    'data' => $weeklySeries,
-                ]],
-            ],
+            'chart' => $chartByDayData,
+            'weeklyChart' => $chartByWeekData,
         ]);
     }
 }
