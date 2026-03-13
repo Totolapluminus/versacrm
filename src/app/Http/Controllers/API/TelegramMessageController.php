@@ -84,6 +84,10 @@ class TelegramMessageController extends Controller
                 $tgApi->sendChannelMessageNewTicketNotification($chat, $telegramMessage, $telegramUser);
             }
 
+            if ($chat->user->telegram_notifications_enabled) {
+                $tgApi->sendOperatorMessageNewMessageNotification($chat, $telegramMessage, $telegramUser);
+            }
+
             $chat->update(['has_new' => true]);
         }
         catch (\Throwable $e) {

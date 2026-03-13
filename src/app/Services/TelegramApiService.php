@@ -15,6 +15,7 @@ class TelegramApiService
         return Http::post("https://api.telegram.org/bot{$botToken}/sendMessage", [
             'chat_id' => $chatId,
             'text' => $text,
+            'parse_mode' => 'HTML',
         ])->throw()->json();
 
     }
@@ -34,6 +35,18 @@ class TelegramApiService
             }
         }
 
+    }
+
+    public function sendOperatorMessageNewMessageNotification(TelegramChat $chat, TelegramMessage $telegramMessage, TelegramUser $telegramUser) : void{
+        $attachmentsText = $telegramMessage->attachments()->exists() ? '*Изображение*' : '';
+        $username = $telegramUser->username ?? $telegramUser->first_name;
+        $token = $chat->telegramBot->token;
+        $text = (
+            "<b>{$username}:</b>\n"
+            . "{$attachmentsText}"
+            . "{$telegramMessage->text}"
+        );
+        $this->sendChatMessageText($token, (int)$chat->user->telegram_id, $text);
     }
 
     public function sendChannelMessageNewTicketNotification(TelegramChat $chat, TelegramMessage $telegramMessage, TelegramUser $telegramUser) : void

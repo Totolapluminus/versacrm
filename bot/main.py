@@ -44,6 +44,8 @@ DOMAIN_TITLES = set(DOMAIN_BY_TITLE.keys())
 
 CANCEL_TEXT = "❌ Отмена"
 NEW_TICKET_TEXT = "❌ Завершить диалог"
+OPERATOR_NOTIFY_ON_TEXT = "🔔 Режим уведомлений"
+OPERATOR_NOTIFY_OFF_TEXT = "🔕 Выключить уведомления"
 
 
 def generate_ticket_id() -> str:
@@ -150,9 +152,39 @@ def api_take_chat(chat_db_id: int, operator_tg_id: int, label: str) -> tuple[int
     print(f"[{label}] Response text: {r.text}", flush=True)
     return r.status_code, r.text
 
+def api_check_operator(bot_db_id: int, operator_tg_id: int):
+    try:
+        r = session.get(
+            f"{LARAVEL_API_URL}/api/telegram/operator/check",
+            params={"bot_db_id": bot_db_id, "telegram_id": operator_tg_id},
+            headers=headers,
+            timeout=10,
+        )
+        r.raise_for_status()
+        return r.json()  # {is_operator: true/false, ...}
+    except Exception:
+        return None
+
+def api_set_operator_notify_mode(bot_db_id: int, operator_tg_id: int, enabled: bool):
+    try:
+        r = session.post(
+            f"{LARAVEL_API_URL}/api/telegram/operator/notification-mode",
+            json={
+                "bot_db_id": bot_db_id,
+                "telegram_id": operator_tg_id,
+                "enabled": enabled,
+            },
+            headers=headers,
+            timeout=10,
+        )
+        r.raise_for_status()
+        return r.json()
+    except Exception:
+        return None
+
 @dataclass
 class UserState:
-    # choose_domain -> choose_category -> wait_text -> chat
+    # operator_menu | choose_domain -> choose_category -> wait_text -> chat
     step: str
     ticket_domain: Optional[str] = None
     category_key: Optional[str] = None
@@ -209,6 +241,11 @@ def build_cancel_keyboard() -> types.ReplyKeyboardMarkup:
     kb.row(types.KeyboardButton(CANCEL_TEXT))
     return kb
 
+def build_operator_keyboard() -> types.ReplyKeyboardMarkup:
+    kb = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    kb.row(types.KeyboardButton(OPERATOR_NOTIFY_ON_TEXT))
+    kb.row(types.KeyboardButton(OPERATOR_NOTIFY_OFF_TEXT))
+    return kb
 
 def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
     bot = telebot.TeleBot(token, parse_mode="HTML")
@@ -316,9 +353,21 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
     def cmd_start(message: types.Message):
         if not message.from_user:
             return
-        api_close_active_chat(bot_db_id, message.chat.id)
-        reset_new_ticket(bot_db_id, message.from_user.id)
+        tg_id = message.from_user.id
+        operator_info = api_check_operator(bot_db_id, tg_id)
 
+        if operator_info and operator_info.get("is_operator"):
+            user_states[(bot_db_id, tg_id)] = UserState(step="operator_menu")
+
+            bot.send_message(
+                message.chat.id,
+                "Вы определены как оператор.\nВыберите действие:",
+                reply_markup=build_operator_keyboard()
+            )
+            return
+
+        api_close_active_chat(bot_db_id, message.chat.id)
+        reset_new_ticket(bot_db_id, tg_id)
         text = (
             "👋 Это телеграм бот цифровой техподдержки Мелгу.\n"
             "График работы: пн-пт с 8:30 до 16:45.\n"
@@ -337,6 +386,57 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
             "<b>Ваш Telegram ID:</b> <code>{}</code>\n"
         ).format(tg_id)
         bot.send_message(message.chat.id, text)
+
+    @bot.message_handler(func=lambda m: (m.text or "").strip() == OPERATOR_NOTIFY_ON_TEXT, content_types=["text"])
+    def on_operator_notify_on(message: types.Message):
+        if not message.from_user:
+            return
+
+        tg_id = message.from_user.id
+        operator_info = api_check_operator(bot_db_id, tg_id)
+
+        if not operator_info or not operator_info.get("is_operator"):
+            bot.send_message(message.chat.id, "Эта функция доступна только оператору.")
+            return
+
+        result = api_set_operator_notify_mode(bot_db_id, tg_id, True)
+        if not result:
+            bot.send_message(message.chat.id, "⚠️ Не удалось включить режим уведомлений.")
+            return
+
+        user_states[(bot_db_id, tg_id)] = UserState(step="operator_menu")
+
+        bot.send_message(
+            message.chat.id,
+            "✅ Режим уведомлений включён.\nТеперь сюда будут приходить новые сообщения из ваших прикреплённых чатов.",
+            reply_markup=build_operator_keyboard()
+        )
+
+
+    @bot.message_handler(func=lambda m: (m.text or "").strip() == OPERATOR_NOTIFY_OFF_TEXT, content_types=["text"])
+    def on_operator_notify_off(message: types.Message):
+        if not message.from_user:
+            return
+
+        tg_id = message.from_user.id
+        operator_info = api_check_operator(bot_db_id, tg_id)
+
+        if not operator_info or not operator_info.get("is_operator"):
+            bot.send_message(message.chat.id, "Эта функция доступна только оператору.")
+            return
+
+        result = api_set_operator_notify_mode(bot_db_id, tg_id, False)
+        if not result:
+            bot.send_message(message.chat.id, "⚠️ Не удалось выключить режим уведомлений.")
+            return
+
+        user_states[(bot_db_id, tg_id)] = UserState(step="operator_menu")
+
+        bot.send_message(
+            message.chat.id,
+            "🔕 Режим уведомлений выключен.",
+            reply_markup=build_operator_keyboard()
+        )
 
     @bot.message_handler(func=lambda m: (m.text or "").strip() == NEW_TICKET_TEXT, content_types=["text"])
     def on_new_ticket_button(message: types.Message):
@@ -412,6 +512,14 @@ def make_bot(token: str, bot_db_id: int) -> tuple[telebot.TeleBot, str]:
                 "⚠️ Не удалось восстановить заявку. Начнём заново.\n"
                 "Выберите сайт 👇",
                 reply_markup=build_domains_keyboard()
+            )
+            return
+
+        if state.step == "operator_menu":
+            bot.send_message(
+                message.chat.id,
+                "Вы в режиме оператора. Используйте кнопки ниже.",
+                reply_markup=build_operator_keyboard()
             )
             return
 

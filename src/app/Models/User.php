@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -55,6 +56,12 @@ class User extends Authenticatable
 
     public function telegramChats(): HasMany {
         return $this->hasMany(TelegramChat::class);
+    }
+
+    public function scopeTelegramOperatorForBot(Builder $query, int $telegramId, int $botDbId){
+        return $query->where('telegram_id', $telegramId)
+            ->where('role', 'operator')
+            ->whereHas('telegramBots', fn($q) => $q->whereKey($botDbId));
     }
 
 }

@@ -4,6 +4,7 @@ use App\Http\Controllers\API\ChatController;
 use App\Http\Controllers\API\SearchController;
 use App\Http\Controllers\API\TelegramBotController;
 use App\Http\Controllers\API\TelegramMessageController;
+use App\Http\Controllers\API\UserController;
 use App\Models\TelegramChat;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -20,6 +21,9 @@ Route::delete('/chat/{chat}', [ChatController::class, 'destroy'])->name('chat.de
 Route::get('/telegram/chat-status', [ChatController::class, 'getStatus']);
 Route::post('/telegram/close-chat', [ChatController::class, 'closeChat']);
 Route::post('/telegram/take-chat', [ChatController::class, 'takeChat']);
+
+Route::get('/telegram/operator/check', [UserController::class, 'checkOperator']);
+Route::post('/telegram/operator/notification-mode', [UserController::class, 'toggleNotificationMode']);
 
 Route::get('/search', [SearchController::class, 'search']);
 
