@@ -55,10 +55,10 @@ watch(selectedOperatorId, (newVal) => {
         </div>
 
         <!-- Admin -->
-        <div v-else-if="user.role === 'admin'" class="space-y-6 py-8 px-40">
+        <div v-else-if="user.role === 'admin'" class="space-y-6 py-8 px-8 xl:px-20 2xl:px-40 ">
 
             <div class="flex items-center justify-between">
-                <h3 class="text-2xl font-semibold mb-4">
+                <h3 class="text-xl md:text-2xl font-semibold mb-4">
                     {{ selectedOperatorId ? 'Статистика оператора' : 'Общая статистика системы' }}
                 </h3>
 

@@ -72,7 +72,7 @@ onUnmounted(() => {
 
                             <!-- Navigation Links -->
                             <div
-                                class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex"
+                                class="hidden space-x-1 lg:space-x-8 sm:-my-px sm:ms-10 sm:flex"
                             >
                                 <NavLink
                                     :href="route('dashboard')"
@@ -236,7 +236,7 @@ onUnmounted(() => {
                             :href="route('dashboard')"
                             :active="route().current('dashboard')"
                         >
-                            Dashboard
+                            Статистика
                         </ResponsiveNavLink>
                     </div>
 
@@ -260,11 +260,43 @@ onUnmounted(() => {
 <!--                                Profile-->
 <!--                            </ResponsiveNavLink>-->
                             <ResponsiveNavLink
+                                :href="route('chat.index')"
+                                :active="route().current('chat.index') || route().current('chat.show')"
+                            >
+                                Чаты
+                            </ResponsiveNavLink>
+                            <ResponsiveNavLink
+                                :href="route('search.index')"
+                                :active="route().current('search.index')"
+                            >
+                                Поиск
+                            </ResponsiveNavLink>
+                            <ResponsiveNavLink
+                                :href="route('link.create')"
+                                :active="route().current('link.create')"
+                            >
+                                Телеграм ID
+                            </ResponsiveNavLink>
+                            <ResponsiveNavLink
+                                v-if="$page.props.auth.user.role === 'admin'"
+                                :href="route('assign.index')"
+                                :active="route().current('assign.index')"
+                            >
+                                Доступ к ботам*
+                            </ResponsiveNavLink>
+                            <ResponsiveNavLink
+                                v-if="$page.props.auth.user.role === 'admin'"
+                                :href="route('register')"
+                                :active="route().current('register')"
+                            >
+                                Новый оператор*
+                            </ResponsiveNavLink>
+                            <ResponsiveNavLink
                                 :href="route('logout')"
                                 method="post"
                                 as="button"
                             >
-                                Log Out
+                                Выйти
                             </ResponsiveNavLink>
                         </div>
                     </div>

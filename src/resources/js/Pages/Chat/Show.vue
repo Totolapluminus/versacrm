@@ -45,6 +45,33 @@ onMounted(() => {
     if (user.role !== 'admin') notificationStore.clearChat(props.current_chat.id)
 })
 
+const quickReplies = [
+    'Добрый день, техподдержка МелГУ, пожалуйста опишите подробнее вашу проблему'
+]
+async function sendQuickReply(text) {
+    await send(text)
+}
+
+const isClosedChatsOpen = ref(false)
+const isRightPanelOpen = ref(false)
+const isMobile = ref(false)
+function checkMobile() {
+    isMobile.value = window.innerWidth < 1024
+    if (!isMobile.value) {
+        isRightPanelOpen.value = false
+    }
+}
+function toggleRightPanel() {
+    isRightPanelOpen.value = !isRightPanelOpen.value
+}
+onMounted(() => {
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+})
+onUnmounted(() => {
+    window.removeEventListener('resize', checkMobile)
+})
+
 function onDraftKeydown(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
@@ -145,10 +172,10 @@ onUnmounted(() => window.Echo.leave(`store-telegram-message-to-chat-${currentCha
 onUnmounted(() => window.Echo.leave(`store-telegram-chat`))
 
 
-async function send() {
+async function send(customText = null) {
 
-    const text = draft.value.trim()
-    const files = pickedFiles.value
+    const text = customText ?? draft.value.trim()
+    const files = customText ? [] : pickedFiles.value
 
     if (!text && files.length === 0) return
 
@@ -165,9 +192,11 @@ async function send() {
 
     messages.value.push(optimistic)
 
-    draft.value = ''
-    pickedFiles.value = []
-    if (fileInput.value) fileInput.value.value = ''
+    if (!customText) {
+        draft.value = ''
+        pickedFiles.value = []
+        if (fileInput.value) fileInput.value.value = ''
+    }
 
     //отправка данных на бекенд
     try {
@@ -289,35 +318,35 @@ const ticketDomainLabel = (key) => {
 
 <template>
     <AuthenticatedLayout>
-        <div class="bg-white grid grid-cols-12 min-h-[calc(100vh-64px)]">
+        <div class="bg-white lg:grid lg:grid-cols-12 min-h-[calc(100vh-64px)] relative">
             <!-- слева список чатов (пока заглушка) -->
-            <aside class="col-span-3 bg-white shadow-lg relative z-10 max-h-[calc(100vh-4rem)] overflow-y-auto">
+            <aside class="lg:col-span-3 bg-white lg:shadow-lg relative z-10 max-h-[calc(100vh-4rem)] overflow-y-auto border-r border-gray-100">
                 <div v-for="bot in botsRef" :key="bot.id">
-                    <h2 class="bg-gray-50 shadow-sm py-1.5 pl-6">Бот "{{ bot.username }}"</h2>
+                    <h2 class="bg-gray-50 shadow-sm py-1.5 pl-4 sm:pl-6 text-sm sm:text-base">Бот "{{ bot.username }}"</h2>
                     <div class="my-3">
                         <div v-for="chat in bot.telegram_chats.filter(chat => chat.status !== 'closed')" :key="chat.id">
                             <Link
                                 :href="route('chat.show', chat.id)"
                                 :class="[
-                                    'flex items-center gap-3 px-4 py-2',
+                                    'flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2',
                                     chat.id === props.current_chat?.id
                                         ? 'bg-gray-50'
                                         : 'bg-white hover:bg-gray-50 transition duration-50'
                                 ]"
                             >
 
-                                <div class="flex items-center justify-center h-10 w-10 rounded-full bg-red-700 text-gray-100 font-semibold text-2xl">
+                                <div class="flex items-center justify-center h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-red-700 text-gray-100 font-semibold text-lg sm:text-2xl">
                                     {{ getInitials(chat) }}
                                 </div>
 
                                 <div class="flex flex-1 flex-col gap-2 truncate">
                                     <div class="flex justify-between items-center">
-                                        <span class="text-[13px] font-bold text-gray-800 truncate">{{chat.telegram_user?.username || chat.telegram_user?.first_name }}, {{ chat.ticket_id }}</span>
-                                        <span class="text-[11px] text-gray-400">{{ chat.last_message_in_human }}</span>
+                                        <span class="text-[12px] sm:text-[13px] font-bold text-gray-800 truncate">{{chat.telegram_user?.username || chat.telegram_user?.first_name }}, {{ chat.ticket_id }}</span>
+                                        <span class="text-[10px] sm:text-[11px] text-gray-400">{{ chat.last_message_in_human }}</span>
                                     </div>
 
                                     <div class="flex justify-between items-center">
-                                        <span class="text-[13px] text-gray-400 truncate">{{chat.last_message.text }}</span>
+                                        <span class="text-[11px] sm:text-[13px] text-gray-400 truncate">{{chat.last_message.text }}</span>
                                         <div class="flex items-center gap-1.5">
                                             <div class="flex items-center gap-0.5">
                                                 <span class="text-[10px] text-gray-400">{{ticketDomainLabel(chat.ticket_domain) }}</span>
@@ -336,46 +365,62 @@ const ticketDomainLabel = (key) => {
                         </div>
                     </div>
                 </div>
-                <h2 class="bg-gray-50 shadow-sm py-1.5 pl-6">Закрытые обращения</h2>
-                <div v-if="closedChats.length" class="my-3">
-                    <div v-for="chat in closedChats" :key="'closed-' + chat.id" class="px-6 py-1">
-                        <Link :href="route('chat.show', chat.id)"
-                              class="flex justify-between text-sm text-gray-600 hover:text-gray-900">
-                            <div>{{ chat.telegram_user?.username || chat.telegram_user?.first_name }}</div>
-                            <div>{{ chat.last_message_in_human }}</div>
-                        </Link>
-                    </div>
-                </div>
 
-                <div v-else class="px-6 py-2 text-sm text-gray-400">
-                    Нет закрытых обращений
+                <div
+                    class="bg-gray-50 shadow-sm py-1.5 px-4 sm:px-6 flex items-center justify-between cursor-pointer"
+                    @click="isClosedChatsOpen = !isClosedChatsOpen"
+                >
+                    <h2 class="text-sm sm:text-base">Закрытые обращения</h2>
+                    <button type="button" class="text-sm text-gray-500">
+                        {{ isClosedChatsOpen ? '▾' : '▸' }}
+                    </button>
+                </div>
+                <div v-if="isClosedChatsOpen">
+                    <div v-if="closedChats.length" class="my-3">
+                        <div v-for="chat in closedChats" :key="'closed-' + chat.id" class="px-6 py-1">
+                            <Link
+                                :href="route('chat.show', chat.id)"
+                                class="flex justify-between text-sm text-gray-600 hover:text-gray-900"
+                            >
+                                <div>{{ chat.telegram_user?.username || chat.telegram_user?.first_name }}</div>
+                                <div>{{ chat.last_message_in_human }}</div>
+                            </Link>
+                        </div>
+                    </div>
+                    <div v-else class="px-6 py-2 text-sm text-gray-400">
+                        Нет закрытых обращений
+                    </div>
                 </div>
             </aside>
 
             <!-- лента сообщений -->
-            <section
-                class="col-span-7 shadow-sm
-            flex flex-col
-            max-h-[calc(100vh-4rem)]
-            overflow-y-auto"
-            >
-                <div class="h-16 flex items-center bg-gray-50 border-b border-gray-100">
-                    <div class="flex flex-col gap-0.5 px-6">
-                        <div class="text-md font-bold">
+            <section class="lg:col-span-7 shadow-sm flex flex-col max-h-[calc(100vh-4rem)] overflow-hidden min-w-0 pt-2 lg:pt-0">
+                <div class="min-h-16 flex items-center justify-between bg-gray-50 border-b border-gray-100 px-3 sm:px-6 py-2">
+                    <div class="flex flex-col gap-0.5 min-w-0">
+                        <div class="text-sm sm:text-md font-bold truncate">
                             {{ currentChat.telegram_user?.username || currentChat.telegram_user?.first_name }},
                             {{ currentChat.ticket_id }}
                         </div>
-                        <div class="text-[13px] text-gray-500">{{ lastMessageTime }},
+                        <div class="text-[11px] sm:text-[13px] text-gray-500 leading-tight">
+                            {{ lastMessageTime }},
                             {{ ticketDomainLabel(currentChat.ticket_domain) }} |
                             {{ ticketTypeLabel(currentChat.ticket_type) }} | Создан:
                             {{ currentChat.created_at_formatted }}
                         </div>
                     </div>
+
+                    <button
+                        type="button"
+                        @click="toggleRightPanel"
+                        class="lg:hidden ml-3 shrink-0 px-3 py-2 rounded-lg border border-gray-200 text-xs font-medium bg-white hover:bg-gray-50"
+                    >
+                        Опции
+                    </button>
                 </div>
                 <!-- скроллируется только этот div -->
                 <div
                     ref="scrollEl"
-                    class="flex-1 overflow-y-auto p-4 space-y-1"
+                    class="flex-1 overflow-y-auto p-2 sm:p-4 space-y-1"
                 >
                     <div
                         v-for="m in messages"
@@ -384,7 +429,7 @@ const ticketDomainLabel = (key) => {
                         :class="m.direction === 'out' ? 'justify-end' : 'justify-start'"
                     >
                         <div
-                            class="max-w-[70%] min-w-[calc(4rem)] px-2 py-1.5 rounded-2xl shadow-md text-sm whitespace-pre-wrap break-words"
+                            class="max-w-[85%] sm:max-w-[70%] min-w-[calc(4rem)] px-2 sm:px-3 py-1.5 sm:py-2 rounded-2xl shadow-md text-xs sm:text-sm whitespace-pre-wrap break-words"
                             :class="m.direction === 'out'
                     ? 'bg-red-700 border border-red-600 text-white rounded-br-md'
                     : 'bg-gray-50 border border-gray-50 text-gray-900 rounded-bl-md'"
@@ -403,7 +448,7 @@ const ticketDomainLabel = (key) => {
 
                 <form
                     @submit.prevent="send"
-                    class="p-3 flex gap-2 border-t items-center max-h-[200px]"
+                    class="p-2 sm:p-3 flex flex-wrap sm:flex-nowrap gap-2 border-t items-center"
                 >
                     <textarea
                         v-model="draft"
@@ -413,9 +458,9 @@ const ticketDomainLabel = (key) => {
                         type="text"
                         :disabled="chatStatus === 'closed' || (user.id !== currentChat.user_id && user.role !== 'admin')"
                         :placeholder="chatStatus === 'closed' || (user.id !== currentChat.user_id && user.role !== 'admin') ? 'ЗАЯВКА ЗАКРЫТА ИЛИ ПРИНАДЛЕЖИТ ДРУГОМУ ОПЕРАТОРУ' : 'Сообщение…'"
-                        class="flex-1 px-4 py-2 rounded-xl border-none focus:outline-none focus:ring-0 focus:ring-blue-200 text-sm resize-none"
+                        class="flex-1 min-w-0 px-3 sm:px-4 py-2 rounded-xl border-none focus:outline-none focus:ring-0 focus:ring-blue-200 text-xs sm:text-sm resize-none"
                     />
-                    <div v-if="pickedFiles.length" class="text-xs text-gray-500 max-w-[250px]">
+                    <div v-if="pickedFiles.length" class="w-full sm:w-auto text-xs text-gray-500 max-w-full sm:max-w-[250px] order-3 sm:order-none">
                         <div v-for="(file, i) in pickedFiles"
                              :key="file.name + file.size + i"
                              @click="removeFile(i)" class="cursor-pointer relative group"
@@ -437,25 +482,27 @@ const ticketDomainLabel = (key) => {
                     <button
                         type="button"
                         @click="openFilePicker"
-                        class="w-15 h-10 px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition"
+                        class="flex justify-center items-center h-10 sm:w-15 sm:h-10 px-3 sm:px-4 py-2 rounded-xl border border-gray-200 hover:bg-gray-50 transition"
                         :disabled="chatStatus === 'closed' || (user.id !== currentChat.user_id && user.role !== 'admin')"
                     >
-                        <PaperClipIcon class="size-5 text-gray-700"/>
+                        <PaperClipIcon class="size-4 sm:size-5 text-gray-700"/>
                     </button>
                     <button
                         type="submit"
-                        class="w-15 h-10 px-4 py-2 rounded-xl bg-red-700 text-white hover:bg-red-800 transition duration-50"
+                        class="flex justify-center items-center h-10 sm:w-15 sm:h-10 px-3 sm:px-4 py-2 rounded-xl bg-red-700 text-white hover:bg-red-800 transition duration-50"
                         :disabled="chatStatus === 'closed' || (user.id !== currentChat.user_id && user.role !== 'admin')"
                     >
-                        <PaperAirplaneIcon class="text-white size-5"></PaperAirplaneIcon>
+                        <PaperAirplaneIcon class="text-white size-4 sm:size-5"></PaperAirplaneIcon>
                     </button>
                 </form>
             </section>
 
-            <aside class="col-span-2 shadow-xl relative z-10">
+            <!-- desktop -->
+            <aside class="hidden lg:block lg:col-span-2 shadow-xl relative z-10">
                 <div v-if="user.id === currentChat.user_id || user.role === 'admin'"
                      class="bg-white rounded-2xl shadow-md p-4 m-4 border border-gray-100 flex flex-col gap-4">
                     <h3 class="font-semibold text-gray-700 mb-2">Опции чата</h3>
+
                     <div>
                         <label for="status" class="text-sm text-gray-600 mb-1 block">Статус:</label>
                         <select
@@ -469,9 +516,9 @@ const ticketDomainLabel = (key) => {
                             <option value="closed">Закрыт</option>
                         </select>
                     </div>
+
                     <div>
                         <label for="operator" class="text-sm text-gray-600 mb-1 block">Оператор:</label>
-
                         <select
                             id="operator"
                             v-model="chatOperator"
@@ -488,6 +535,23 @@ const ticketDomainLabel = (key) => {
                             </option>
                         </select>
                     </div>
+
+                    <div>
+                        <label class="text-sm text-gray-600 mb-2 block">Быстрые ответы:</label>
+                        <div class="flex flex-col gap-2">
+                            <button
+                                v-for="reply in quickReplies"
+                                :key="reply"
+                                type="button"
+                                @click="sendQuickReply(reply)"
+                                class="w-full text-left border rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-red-700 hover:text-white hover:border-red-700 transition"
+                                :disabled="chatStatus === 'closed' || (user.id !== currentChat.user_id && user.role !== 'admin')"
+                            >
+                                {{ reply }}
+                            </button>
+                        </div>
+                    </div>
+
                     <button
                         v-if="chatStatus === 'closed'"
                         type="button"
@@ -497,8 +561,99 @@ const ticketDomainLabel = (key) => {
                         Удалить чат
                     </button>
                 </div>
-                <div v-else class="px-3 py-6 text-center font-bold text-2xl">ЧАТ ПРИНАДЛЕЖИТ ДРУГОМУ ОПЕРАТОРУ<br><br>
-                    ОПЦИИ НЕДОСТПНЫ
+
+                <div v-else class="px-3 py-6 text-center font-bold text-xl">
+                    ЧАТ ПРИНАДЛЕЖИТ ДРУГОМУ ОПЕРАТОРУ<br><br>
+                    ОПЦИИ НЕДОСТУПНЫ
+                </div>
+            </aside>
+
+            <!-- mobile overlay -->
+            <div
+                v-if="isMobile && isRightPanelOpen"
+                class="fixed inset-0 bg-black/40 z-40 lg:hidden"
+                @click="isRightPanelOpen = false"
+            ></div>
+
+            <aside
+                class="fixed top-0 right-0 h-full w-[85%] max-w-[340px] bg-white shadow-2xl z-50 transform transition-transform duration-300 lg:hidden"
+                :class="isRightPanelOpen ? 'translate-x-0' : 'translate-x-full'"
+            >
+                <div class="flex items-center justify-between px-4 py-4 border-b">
+                    <h3 class="font-semibold text-gray-700">Опции чата</h3>
+                    <button
+                        type="button"
+                        @click="isRightPanelOpen = false"
+                        class="px-2 py-1 text-sm rounded-md border border-gray-200"
+                    >
+                        Закрыть
+                    </button>
+                </div>
+
+                <div v-if="user.id === currentChat.user_id || user.role === 'admin'"
+                     class="p-4 flex flex-col gap-4">
+                    <div>
+                        <label for="status-mobile" class="text-sm text-gray-600 mb-1 block">Статус:</label>
+                        <select
+                            id="status-mobile"
+                            v-model="chatStatus"
+                            @change="updateStatus"
+                            class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-200"
+                        >
+                            <option value="open">Открыт</option>
+                            <option value="in_progress">В работе</option>
+                            <option value="closed">Закрыт</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="operator-mobile" class="text-sm text-gray-600 mb-1 block">Оператор:</label>
+                        <select
+                            id="operator-mobile"
+                            v-model="chatOperator"
+                            @change="updateOperator"
+                            class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring focus:ring-blue-200"
+                        >
+                            <option disabled value="">Выберите оператора</option>
+                            <option
+                                v-for="operator in operators"
+                                :key="operator.id"
+                                :value="operator.id"
+                            >
+                                {{ operator.name }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-sm text-gray-700 mb-2 block">Быстрые ответы:</label>
+                        <div class="flex flex-col gap-2">
+                            <button
+                                v-for="reply in quickReplies"
+                                :key="reply"
+                                type="button"
+                                @click="sendQuickReply(reply)"
+                                class="w-full text-left border rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-red-700 hover:text-white hover:border-red-700 transition"
+                                :disabled="chatStatus === 'closed' || (user.id !== currentChat.user_id && user.role !== 'admin')"
+                            >
+                                {{ reply }}
+                            </button>
+                        </div>
+                    </div>
+
+                    <button
+                        v-if="chatStatus === 'closed'"
+                        type="button"
+                        @click="deleteChat"
+                        class="w-full bg-red-700 text-white rounded-lg px-3 py-2 text-sm font-semibold hover:bg-red-800"
+                    >
+                        Удалить чат
+                    </button>
+                </div>
+
+                <div v-else class="px-4 py-6 text-center font-bold text-lg">
+                    ЧАТ ПРИНАДЛЕЖИТ ДРУГОМУ ОПЕРАТОРУ<br><br>
+                    ОПЦИИ НЕДОСТУПНЫ
                 </div>
             </aside>
 

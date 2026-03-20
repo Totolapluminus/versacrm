@@ -23,7 +23,7 @@ const props = defineProps({
 
         <div class="flex flex-col text-right">
             <div class="text-sm font-semibold text-gray-500">{{ title }}</div>
-            <div class="text-2xl font-bold">{{ value }}</div>
+            <div class="text-lg 2xl:text-2xl font-bold">{{ value }}</div>
         </div>
 
 
