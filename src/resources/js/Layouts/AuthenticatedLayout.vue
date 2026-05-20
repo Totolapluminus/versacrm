@@ -1,34 +1,114 @@
 <script setup>
-import {onMounted, onUnmounted, ref} from 'vue';
-import ApplicationLogo from '@/Components/ApplicationLogo.vue';
-import Dropdown from '@/Components/Dropdown.vue';
-import DropdownLink from '@/Components/DropdownLink.vue';
-import NavLink from '@/Components/NavLink.vue';
-import ResponsiveNavLink from '@/Components/ResponsiveNavLink.vue';
-import {Link, usePage} from '@inertiajs/vue3';
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { Link, usePage } from '@inertiajs/vue3'
 import axios from 'axios'
-import {useNotificationStore} from "@/Stores/notificationStore.js";
+import { useNotificationStore } from '@/Stores/notificationStore.js'
 
-import {ChartBarSquareIcon} from "@heroicons/vue/24/outline/index.js";
-import {ChatBubbleLeftRightIcon} from "@heroicons/vue/24/outline/index.js";
-import {MagnifyingGlassIcon, LinkIcon} from "@heroicons/vue/24/outline/index.js";
+import { Button } from '@/Components/ui/button'
+import { Badge } from '@/Components/ui/badge'
+import { Avatar, AvatarFallback } from '@/Components/ui/avatar'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from '@/Components/ui/dropdown-menu'
+import {
+    Sheet,
+    SheetContent,
+    SheetTrigger,
+} from '@/Components/ui/sheet'
+import { Separator } from '@/Components/ui/separator'
+import { ScrollArea } from '@/Components/ui/scroll-area'
+import { Input } from '@/Components/ui/input'
+
+import {
+    Bell,
+    Bot,
+    ChevronDown,
+    LayoutDashboard,
+    Link2,
+    LogOut,
+    Menu,
+    MessageCircle,
+    Search,
+    ShieldCheck,
+    UserPlus,
+} from 'lucide-vue-next'
+
+const page = usePage()
+const user = page.props.auth.user
+
+const notificationStore = useNotificationStore()
+const mobileMenuOpen = ref(false)
+
+const unreadCount = computed(() => notificationStore.count())
 
 function logoutTokenClean() {
     localStorage.removeItem('token')
     delete axios.defaults.headers.common.Authorization
 }
 
-const page = usePage()
+const navItems = computed(() => {
+    const items = [
+        {
+            label: 'Статистика',
+            href: route('dashboard'),
+            icon: LayoutDashboard,
+            active: route().current('dashboard'),
+        },
+        {
+            label: 'Чаты',
+            href: route('chat.index'),
+            icon: MessageCircle,
+            active: route().current('chat.index') || route().current('chat.show'),
+            badge: unreadCount.value,
+        },
+        {
+            label: 'Поиск',
+            href: route('search.index'),
+            icon: Search,
+            active: route().current('search.index'),
+        },
+        {
+            label: 'Телеграм ID',
+            href: route('link.create'),
+            icon: Link2,
+            active: route().current('link.create'),
+        },
+    ]
 
-const showingNavigationDropdown = ref(false);
+    if (user?.role === 'admin') {
+        items.push(
+            {
+                label: 'Доступ к ботам',
+                href: route('assign.index'),
+                icon: ShieldCheck,
+                active: route().current('assign.index'),
+            },
+            {
+                label: 'Новый оператор',
+                href: route('register'),
+                icon: UserPlus,
+                active: route().current('register'),
+            },
+        )
+    }
 
-const user = usePage().props.auth.user
+    return items
+})
 
-const notificationStore = useNotificationStore()
+const userInitials = computed(() => {
+    if (!user?.name) return 'U'
 
-onMounted(() => {
-    if (!user) return
-    notificationStore.setChats(page.props.unreadChatIds ?? [])
+    return user.name
+        .split(' ')
+        .map((part) => part[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
 })
 
 onMounted(() => {
@@ -38,7 +118,6 @@ onMounted(() => {
 
     window.Echo.channel(`notification-on-message-to-user-${user.id}`)
         .listen('.notification-on-message-to-user', (res) => {
-            // Новое сообщение → добавляем в счётчик
             notificationStore.addChat(res.chat_id)
             console.log('NOTIFICATION:', res)
         })
@@ -48,274 +127,271 @@ onMounted(() => {
 
 onUnmounted(() => {
     if (!user) return
+
     window.Echo.leave(`notification-on-message-to-user-${user.id}`)
 })
-
 </script>
 
 <template>
-    <div>
-        <div class="min-h-screen bg-gray-100">
-            <nav
-                class="border-b border-gray-100 bg-white"
-            >
-                <!-- Primary Navigation Menu -->
-                <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                    <div class="flex h-16 justify-between">
-                        <div class="flex">
-                            <!-- Logo -->
-                            <div class="flex shrink-0 items-center">
-                                <Link :href="route('dashboard')">
-                                    <img class="block h-9 w-auto fill-current text-gray-800" src="/storage/logo.png" alt="Logo">
-                                </Link>
-                            </div>
+    <div class="min-h-screen bg-slate-50 text-slate-950">
+        <!-- Desktop sidebar -->
+        <aside
+            class="fixed inset-y-0 left-0 z-40 hidden w-72 border-r border-slate-200 bg-white/95 backdrop-blur lg:flex lg:flex-col"
+        >
+            <div class="flex h-16 items-center gap-3 px-6 py-10">
+                <Link :href="route('dashboard')" class="flex items-center gap-3">
 
-                            <!-- Navigation Links -->
-                            <div
-                                class="hidden space-x-1 lg:space-x-8 sm:-my-px sm:ms-10 sm:flex"
+                        <img class="block h-12 w-auto fill-current text-gray-800" src="/storage/logo.png" alt="Logo">
+
+                    <div class="leading-tight">
+                        <div class="text-md font-semibold tracking-tight">
+                            CRM.MELSU
+                        </div>
+                        <div class="text-xs text-muted-foreground">
+                            Техподдержка МелГУ
+                        </div>
+                    </div>
+                </Link>
+            </div>
+
+
+            <ScrollArea class="flex-1 px-3 py-4">
+                <nav class="space-y-1">
+                    <Button
+                        v-for="item in navItems"
+                        :key="item.label"
+                        variant="ghost"
+                        class="h-9 w-full justify-start gap-3 rounded-none px-3 text-sm font-md shadow-none !bg-transparent hover:!bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                        :class="item.active
+                ? 'text-indigo-600 hover:text-indigo-600'
+                : 'text-slate-700 hover:text-black'"
+                        as-child
+                    >
+                        <Link :href="item.href">
+                            <component :is="item.icon" class="h-5 w-5 shrink-0" />
+
+                            <span class="flex-1 text-left">
+                    {{ item.label }}
+                </span>
+
+                            <Badge
+                                v-if="item.badge > 0"
+                                variant="destructive"
+                                class="ml-auto h-5 min-w-5 rounded-full px-1.5 text-[11px]"
                             >
-                                <NavLink
-                                    :href="route('dashboard')"
-                                    :active="route().current('dashboard')"
-                                >
-                                    <ChartBarSquareIcon stroke="currentColor" class="w-5 h-5 mr-1"></ChartBarSquareIcon>
-                                    Статистика
-                                </NavLink>
+                                {{ item.badge }}
+                            </Badge>
+                        </Link>
+                    </Button>
+                </nav>
+            </ScrollArea>
 
-                                <div class="relative space-x-8 sm:ms-10 sm:flex">
-                                    <NavLink
-                                        :href="route('chat.index')"
-                                        :active="route().current('chat.index') || route().current('chat.show')"
-                                    >
-                                        <ChatBubbleLeftRightIcon stroke="currentColor" class="w-5 h-5 mr-1"></ChatBubbleLeftRightIcon>
-                                        Чаты
-                                    </NavLink>
+<!--            <div class="border-t border-slate-200 p-4">-->
+<!--                <div class="rounded-2xl border border-slate-200 bg-slate-50 p-3">-->
+<!--                    <div class="flex items-center gap-3">-->
+<!--                        <Avatar class="h-9 w-9">-->
+<!--                            <AvatarFallback class="bg-white text-xs font-semibold">-->
+<!--                                {{ userInitials }}-->
+<!--                            </AvatarFallback>-->
+<!--                        </Avatar>-->
 
-                                    <span
-                                        v-if="notificationStore.count() > 0"
-                                        class="absolute top-2 -right-3 bg-red-600 text-white text-xs font-semibold rounded-full px-2 py-[1px]"
+<!--                        <div class="min-w-0 flex-1">-->
+<!--                            <div class="truncate text-sm font-medium">-->
+<!--                                {{ user.name }}-->
+<!--                            </div>-->
+<!--                            <div class="truncate text-xs text-muted-foreground">-->
+<!--                                {{ user.email }}-->
+<!--                            </div>-->
+<!--                        </div>-->
+<!--                    </div>-->
+<!--                </div>-->
+<!--            </div>-->
+        </aside>
+
+        <!-- Mobile topbar -->
+        <div class="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 lg:hidden">
+            <Sheet v-model:open="mobileMenuOpen">
+                <SheetTrigger as-child>
+                    <Button variant="ghost" size="icon" class="rounded-none bg-transparent hover:bg-transparent">
+                        <Menu class="h-5 w-5 text-slate-700" />
+                    </Button>
+                </SheetTrigger>
+
+                <SheetContent
+                    side="left"
+                    class="w-72 border-r border-slate-200 bg-white p-0 shadow-xl duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-left data-[state=closed]:slide-out-to-left"
+                >
+                    <div class="flex h-16 items-center gap-3 px-6 py-10">
+                        <Link
+                            :href="route('dashboard')"
+                            class="flex items-center gap-3"
+                            @click="mobileMenuOpen = false"
+                        >
+                            <img
+                                class="block h-12 w-auto"
+                                src="/storage/logo.png"
+                                alt="Logo"
+                            >
+
+                            <div class="leading-tight">
+                                <div class="text-md font-semibold tracking-tight">
+                                    CRM.MELSU
+                                </div>
+                                <div class="text-xs text-muted-foreground">
+                                    Техподдержка МелГУ
+                                </div>
+                            </div>
+                        </Link>
+                    </div>
+
+                    <ScrollArea class="h-[calc(100vh-5rem)] px-3 py-4">
+                        <nav class="space-y-1">
+                            <Button
+                                v-for="item in navItems"
+                                :key="item.label"
+                                variant="ghost"
+                                class="h-9 w-full justify-start gap-3 rounded-none px-3 text-sm font-md shadow-none !bg-transparent hover:!bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                                :class="item.active
+                            ? 'text-indigo-600 hover:text-indigo-600'
+                            : 'text-slate-700 hover:text-black'"
+                                as-child
+                            >
+                                <Link :href="item.href" @click="mobileMenuOpen = false">
+                                    <component :is="item.icon" class="h-5 w-5 shrink-0" />
+
+                                    <span class="flex-1 text-left">
+                                {{ item.label }}
+                            </span>
+
+                                    <Badge
+                                        v-if="item.badge > 0"
+                                        variant="destructive"
+                                        class="ml-auto h-5 min-w-5 rounded-full px-1.5 text-[11px]"
                                     >
-                                    {{ notificationStore.count() }}
-                                    </span>
+                                        {{ item.badge }}
+                                    </Badge>
+                                </Link>
+                            </Button>
+                        </nav>
+                    </ScrollArea>
+                </SheetContent>
+            </Sheet>
+
+            <Link :href="route('dashboard')" class="flex items-center gap-3">
+                <img
+                    class="block h-10 w-auto"
+                    src="/storage/logo.png"
+                    alt="Logo"
+                >
+
+                <div class="leading-tight">
+                    <div class="text-sm font-semibold tracking-tight">
+                        CRM.MELSU
+                    </div>
+                    <div class="text-[11px] text-muted-foreground">
+                        Техподдержка МелГУ
+                    </div>
+                </div>
+            </Link>
+
+            <Button variant="ghost" size="icon" class="relative rounded-none bg-transparent hover:bg-transparent">
+                <Bell class="h-5 w-5 text-slate-700" />
+
+                <span
+                    v-if="unreadCount > 0"
+                    class="absolute right-2 top-2 h-2 w-2 rounded-full bg-indigo-500"
+                />
+            </Button>
+        </div>
+
+        <!-- Main area -->
+        <div class="lg:pl-72">
+            <!-- Desktop topbar -->
+            <header class="sticky top-0 z-30 hidden h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-6 py-10 backdrop-blur lg:flex">
+                <div class="w-full max-w-md">
+                    <div class="relative">
+                        <Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                            class="h-10 rounded-xl bg-slate-50 pl-9"
+                            placeholder="Поиск по чатам..."
+                        />
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <Button variant="ghost" size="icon" class="relative rounded-xl">
+                        <Bell class="h-5 w-5" />
+
+                        <span
+                            v-if="unreadCount > 0"
+                            class="absolute right-2 top-2 h-2 w-2 rounded-full bg-indigo-500"
+                        />
+                    </Button>
+
+                    <DropdownMenu>
+                        <DropdownMenuTrigger as-child>
+                            <Button variant="ghost" class="h-10 gap-3 rounded-xl px-2">
+<!--                                <Avatar class="h-8 w-8">-->
+<!--                                    <AvatarFallback class="bg-slate-100 text-xs font-semibold">-->
+<!--                                        {{ userInitials }}-->
+<!--                                    </AvatarFallback>-->
+<!--                                </Avatar>-->
+
+                                <div class="hidden max-w-40 text-left xl:block">
+                                    <div class="truncate text-sm font-medium">
+                                        {{ user.name }}
+                                    </div>
+                                    <div class="truncate text-xs text-muted-foreground">
+                                        {{ user.role }}
+                                    </div>
                                 </div>
 
-                                <NavLink
-                                    :href="route('search.index')"
-                                    :active="route().current('search.index')"
+                                <ChevronDown class="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                        </DropdownMenuTrigger>
+
+                        <DropdownMenuContent align="end" class="w-56">
+                            <DropdownMenuLabel>
+                                <div class="text-sm font-medium">
+                                    {{ user.name }}
+                                </div>
+                                <div class="truncate text-xs font-normal text-muted-foreground">
+                                    {{ user.email }}
+                                </div>
+                            </DropdownMenuLabel>
+
+                            <DropdownMenuSeparator />
+
+                            <DropdownMenuItem as-child>
+                                <Link
+                                    :href="route('logout')"
+                                    method="post"
+                                    as="button"
+                                    class="w-full"
+                                    @click="logoutTokenClean"
                                 >
-                                    <MagnifyingGlassIcon stroke="currentColor" class="w-5 h-5 mr-1"></MagnifyingGlassIcon>
-                                    Поиск
-                                </NavLink>
-
-                                <NavLink
-                                    :href="route('link.create')"
-                                    :active="route().current('link.create')"
-                                >
-                                    <LinkIcon stroke="currentColor" class="w-5 h-5 mr-1"></LinkIcon>
-                                    Телеграм ID
-                                </NavLink>
-
-                                <NavLink v-if="$page.props.auth.user.role === 'admin'"
-                                         :href="route('assign.index')"
-                                         :active="route().current('assign.index')"
-                                >
-                                    Доступ к ботам*
-                                </NavLink>
-
-                                <NavLink v-if="$page.props.auth.user.role === 'admin'"
-                                         :href="route('register')"
-                                         :active="route().current('register')"
-                                >
-                                    Новый оператор*
-                                </NavLink>
-
-                            </div>
-
-                        </div>
-
-                        <div class="hidden sm:ms-6 sm:flex sm:items-center">
-                            <!-- Settings Dropdown -->
-                            <div class="relative ms-3">
-                                <Dropdown align="right" width="48">
-                                    <template #trigger>
-                                        <span class="inline-flex rounded-md">
-                                            <button
-                                                type="button"
-                                                class="inline-flex items-center rounded-md border border-transparent bg-white px-3 py-2 text-sm font-medium leading-4 text-gray-500 transition duration-150 ease-in-out hover:text-gray-700 focus:outline-none"
-                                            >
-                                                {{ $page.props.auth.user.name }}
-
-                                                <svg
-                                                    class="-me-0.5 ms-2 h-4 w-4"
-                                                    xmlns="http://www.w3.org/2000/svg"
-                                                    viewBox="0 0 20 20"
-                                                    fill="currentColor"
-                                                >
-                                                    <path
-                                                        fill-rule="evenodd"
-                                                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                                                        clip-rule="evenodd"
-                                                    />
-                                                </svg>
-                                            </button>
-                                        </span>
-                                    </template>
-
-                                    <template #content>
-<!--                                        <DropdownLink-->
-<!--                                            :href="route('profile.edit')"-->
-<!--                                        >-->
-<!--                                            Профиль-->
-<!--                                        </DropdownLink>-->
-                                        <DropdownLink
-                                            :href="route('logout')"
-                                            method="post"
-                                            as="button"
-                                            @click="logoutTokenClean"
-                                        >
-                                            Выйти
-                                        </DropdownLink>
-                                    </template>
-                                </Dropdown>
-                            </div>
-                        </div>
-
-                        <!-- Hamburger -->
-                        <div class="-me-2 flex items-center sm:hidden">
-                            <button
-                                @click="
-                                    showingNavigationDropdown =
-                                        !showingNavigationDropdown
-                                "
-                                class="inline-flex items-center justify-center rounded-md p-2 text-gray-400 transition duration-150 ease-in-out hover:bg-gray-100 hover:text-gray-500 focus:bg-gray-100 focus:text-gray-500 focus:outline-none"
-                            >
-                                <svg
-                                    class="h-6 w-6"
-                                    stroke="currentColor"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <path
-                                        :class="{
-                                            hidden: showingNavigationDropdown,
-                                            'inline-flex':
-                                                !showingNavigationDropdown,
-                                        }"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M4 6h16M4 12h16M4 18h16"
-                                    />
-                                    <path
-                                        :class="{
-                                            hidden: !showingNavigationDropdown,
-                                            'inline-flex':
-                                                showingNavigationDropdown,
-                                        }"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="2"
-                                        d="M6 18L18 6M6 6l12 12"
-                                    />
-                                </svg>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Responsive Navigation Menu -->
-                <div
-                    :class="{
-                        block: showingNavigationDropdown,
-                        hidden: !showingNavigationDropdown,
-                    }"
-                    class="sm:hidden"
-                >
-                    <div class="space-y-1 pb-3 pt-2">
-                        <ResponsiveNavLink
-                            :href="route('dashboard')"
-                            :active="route().current('dashboard')"
-                        >
-                            Статистика
-                        </ResponsiveNavLink>
-                    </div>
-
-                    <!-- Responsive Settings Options -->
-                    <div
-                        class="border-t border-gray-200 pb-1 pt-4"
-                    >
-                        <div class="px-4">
-                            <div
-                                class="text-base font-medium text-gray-800"
-                            >
-                                {{ $page.props.auth.user.name }}
-                            </div>
-                            <div class="text-sm font-medium text-gray-500">
-                                {{ $page.props.auth.user.email }}
-                            </div>
-                        </div>
-
-                        <div class="mt-3 space-y-1">
-<!--                            <ResponsiveNavLink :href="route('profile.edit')">-->
-<!--                                Profile-->
-<!--                            </ResponsiveNavLink>-->
-                            <ResponsiveNavLink
-                                :href="route('chat.index')"
-                                :active="route().current('chat.index') || route().current('chat.show')"
-                            >
-                                Чаты
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink
-                                :href="route('search.index')"
-                                :active="route().current('search.index')"
-                            >
-                                Поиск
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink
-                                :href="route('link.create')"
-                                :active="route().current('link.create')"
-                            >
-                                Телеграм ID
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink
-                                v-if="$page.props.auth.user.role === 'admin'"
-                                :href="route('assign.index')"
-                                :active="route().current('assign.index')"
-                            >
-                                Доступ к ботам*
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink
-                                v-if="$page.props.auth.user.role === 'admin'"
-                                :href="route('register')"
-                                :active="route().current('register')"
-                            >
-                                Новый оператор*
-                            </ResponsiveNavLink>
-                            <ResponsiveNavLink
-                                :href="route('logout')"
-                                method="post"
-                                as="button"
-                            >
-                                Выйти
-                            </ResponsiveNavLink>
-                        </div>
-                    </div>
-                </div>
-            </nav>
-
-            <!-- Page Heading -->
-            <header
-                class="bg-white shadow"
-                v-if="$slots.header"
-            >
-                <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                    <slot name="header"/>
+                                    <LogOut class="mr-2 h-4 w-4" />
+                                    Выйти
+                                </Link>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </header>
 
-            <!-- Page Content -->
-            <main>
-                <slot/>
+            <!-- Page heading -->
+            <div
+                v-if="$slots.header"
+                class="border-b border-slate-200 bg-white"
+            >
+                <div class="px-4 py-5 sm:px-6 lg:px-8">
+                    <slot name="header" />
+                </div>
+            </div>
+
+            <!-- Page content -->
+            <main class="min-h-[calc(100vh-4rem)] px-4 py-6 sm:px-6 lg:px-8">
+                <slot />
             </main>
         </div>
     </div>
