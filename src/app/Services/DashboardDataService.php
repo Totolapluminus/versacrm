@@ -34,6 +34,7 @@ class DashboardDataService
             }
         }
         return count($closeTimes) ? round(array_sum($closeTimes) / count($closeTimes)) : 0;
+
     }
 
     public function chartByDayData(Collection $rows){
@@ -46,6 +47,7 @@ class DashboardDataService
             'labels' => $labels,
             'series' => $series
         ];
+
     }
 
     public function chartByWeekData(Collection $weeklyRows){
@@ -60,5 +62,26 @@ class DashboardDataService
                 ],
             ]
         ];
+
+    }
+
+    public function chartByDomainData(Collection $rows){
+        $domainLabels = [
+            'lms' => 'lms.melsu',
+            'my' => 'my.melsu',
+            'rasp' => 'rasp.melsu',
+            'other' => 'Другие',
+        ];
+
+        $labels = $rows->pluck('ticket_domain')->map(function ($domain) use ($domainLabels) {
+            return $domainLabels[$domain];
+        });
+        $series = $rows->pluck('count');
+
+        return [
+            'labels' => $labels,
+            'series' => $series,
+        ];
+
     }
 }

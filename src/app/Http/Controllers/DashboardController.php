@@ -56,6 +56,9 @@ class DashboardController extends Controller
         $weeklyRows = TelegramChat::visibleToUser($targetUser)->selectRaw("DATE_TRUNC('week', created_at) as week, COUNT(*) as cnt")->groupBy('week')->orderBy('week')->get();
         $chartByWeekData = $dashboardDataService->chartByWeekData($weeklyRows);
 
+        $ticketDomainRows = TelegramChat::visibleToUser($targetUser)->select('ticket_domain')->selectRaw('COUNT(*) as count')->groupBy('ticket_domain')->orderByDesc('count')->get();
+        $chartByDomainData = $dashboardDataService->chartByDomainData($ticketDomainRows);
+
         $kpis = compact('newTickets', 'activeTickets', 'closedTickets', 'totalBots',
             'totalMessages', 'avgResponseTime', 'mostLoadedBot', 'avgCloseTime');
 
@@ -66,6 +69,7 @@ class DashboardController extends Controller
             'kpis' => $kpis,
             'chart' => $chartByDayData,
             'weeklyChart' => $chartByWeekData,
+            'domainChart' => $chartByDomainData,
         ]);
     }
 }

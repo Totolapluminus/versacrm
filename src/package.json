@@ -25,7 +25,10 @@
     "dependencies": {
         "@heroicons/vue": "^2.2.0",
         "@laravel/echo-vue": "^2.2.6",
+        "@unovis/ts": "^1.6.5",
+        "@unovis/vue": "^1.6.5",
         "@vueuse/core": "^14.3.0",
+        "apexcharts": "^5.12.0",
         "chart.js": "^4.5.1",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
@@ -34,6 +37,7 @@
         "reka-ui": "^2.9.7",
         "tailwind-merge": "^3.6.0",
         "tailwindcss-animate": "^1.0.7",
-        "vue-chartjs": "^5.3.3"
+        "vue-chartjs": "^5.3.3",
+        "vue3-apexcharts": "^1.11.1"
     }
 }
